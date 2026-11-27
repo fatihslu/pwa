@@ -26,17 +26,19 @@ function loadState() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (!parsed.profile) parsed.profile = { age: 37, height: 180, weight: 86 };
+      if (!parsed.calorieLog) parsed.calorieLog = {}; // { dateStr: kcal }
       return parsed;
     }
   } catch (e) {}
   return {
     weekId: getWeekId(),
     profile: { age: 37, height: 180, weight: 86 },
-    completedDays: [], // array of dayIndex completed this week
-    warmupDone: {}, // { dateStr: { w1: true } }
-    workoutLogs: {}, // { "dateStr_dayIndex": { exId: [{ weight, reps, done }] } }
-    lastWeights: {}, // { exId: "8" }
-    nutrition: {}, // { dateStr: { meals: {}, waterMl: 0, mode: 'training' } }
+    completedDays: [],
+    warmupDone: {},
+    workoutLogs: {},
+    lastWeights: {},
+    nutrition: {},
+    calorieLog: {},      // { "2024-01-01": 350 }  estimated burned kcal
     measurements: [
       { date: getTodayDateStr(), weight: 86.0, rightArm: 35.0, leftArm: 34.8 }
     ]
@@ -62,7 +64,7 @@ function saveState() {
 const todayDayIndex = new Date().getDay();
 let selectedDayIndex = todayDayIndex;
 let activeTab = 'today';
-let warmupOpen = true;
+let warmupOpen = false; // DEFAULT KAPALI
 let timerInterval = null;
 let timerSeconds = 0;
 let deferredInstallPrompt = null;
@@ -136,30 +138,39 @@ const timerDisplay = document.getElementById('timer-display');
 const installBtn = document.getElementById('install-pwa-btn');
 const themBtn = document.getElementById('theme-toggle-btn');
 const musicBtn = document.getElementById('music-toggle-btn');
-const musicFrameWrap = document.getElementById('music-frame-wrap');
-const pixabayFrame = document.getElementById('pixabay-frame');
 
 // ── Theme toggle ──
 const savedTheme = localStorage.getItem('kolgucu_theme') || 'dark';
 if (savedTheme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+(function applyThemeIcons() {
+  const moonEl = document.getElementById('theme-icon-moon');
+  const sunEl = document.getElementById('theme-icon-sun');
+  if (savedTheme === 'light') {
+    if (moonEl) moonEl.classList.add('hidden');
+    if (sunEl) sunEl.classList.remove('hidden');
+  }
+})();
+
 if (themBtn) {
-  themBtn.textContent = savedTheme === 'light' ? '🌙' : '☀️';
   themBtn.addEventListener('click', () => {
     const isLight = document.documentElement.dataset.theme === 'light';
+    const moonEl = document.getElementById('theme-icon-moon');
+    const sunEl = document.getElementById('theme-icon-sun');
     if (isLight) {
       document.documentElement.removeAttribute('data-theme');
       localStorage.setItem('kolgucu_theme', 'dark');
-      themBtn.textContent = '☀️';
+      if (moonEl) moonEl.classList.remove('hidden');
+      if (sunEl) sunEl.classList.add('hidden');
     } else {
       document.documentElement.setAttribute('data-theme', 'light');
       localStorage.setItem('kolgucu_theme', 'light');
-      themBtn.textContent = '🌙';
+      if (moonEl) moonEl.classList.add('hidden');
+      if (sunEl) sunEl.classList.remove('hidden');
     }
   });
 }
 
 // ── Music toggle ──
-// Kullanılan müzikler: Pixabay & ccMixter lisanssız spor/rap beatler (CDN direkt mp3)
 const TRACKS = [
   { title: 'Sport Beat Vol.1',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
   { title: 'Sport Beat Vol.2',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
@@ -177,32 +188,26 @@ let currentTrack = 0;
 let audioEl = null;
 let musicPlayerEl = null;
 
+// SVG icons for music player (inline, no CDN dependency)
+const svgPrev = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>`;
+const svgNext = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>`;
+const svgPlay = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+const svgPause = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+const svgClose = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+const svgMusic = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+
 function buildAudioPlayer() {
   if (musicPlayerEl) return;
 
   audioEl = new Audio();
-  // NO crossOrigin — SoundHelix doesn't need it and it can cause CORS block
   audioEl.preload = 'none';
   audioEl.volume = 0.75;
 
   musicPlayerEl = document.createElement('div');
   musicPlayerEl.id = 'music-player';
-  musicPlayerEl.style.cssText = `
-    position:fixed;
-    bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 10px);
-    left:50%; transform:translateX(-50%);
-    width:calc(100% - 28px); max-width:512px;
-    background:var(--surface-2);
-    border:1px solid var(--border);
-    border-radius:16px; padding:10px 14px;
-    display:flex; align-items:center; gap:10px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.6);
-    z-index:35;
-  `;
   updatePlayerUI();
   document.body.appendChild(musicPlayerEl);
 
-  // Auto-advance + loop: on end go to next, after last go back to first
   audioEl.addEventListener('ended', () => {
     currentTrack = (currentTrack + 1) % TRACKS.length;
     loadTrack(true);
@@ -212,28 +217,27 @@ function buildAudioPlayer() {
 function updatePlayerUI() {
   if (!musicPlayerEl) return;
   const t = TRACKS[currentTrack];
+  const isPlaying = audioEl && !audioEl.paused;
   musicPlayerEl.innerHTML = `
-    <span style="font-size:20px;">🎵</span>
+    <span style="color:var(--accent);flex-shrink:0;">${svgMusic}</span>
     <div style="flex:1;min-width:0;">
       <div style="font-size:13px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.title}</div>
       <div style="font-size:11px;color:var(--text-muted);">${t.artist}</div>
     </div>
-    <button id="mp-prev" style="background:none;border:none;color:var(--text);font-size:18px;cursor:pointer;padding:4px;">⏮</button>
-    <button id="mp-play" style="background:linear-gradient(135deg,#0E7E8E,#15A8BB);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;display:grid;place-items:center;">▶</button>
-    <button id="mp-next" style="background:none;border:none;color:var(--text);font-size:18px;cursor:pointer;padding:4px;">⏭</button>
-    <button id="mp-close" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:4px;">✕</button>
+    <button id="mp-prev" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;display:grid;place-items:center;">${svgPrev}</button>
+    <button id="mp-play" style="background:linear-gradient(135deg,#0E7E8E,#15A8BB);border:none;color:#fff;border-radius:50%;width:36px;height:36px;cursor:pointer;display:grid;place-items:center;flex-shrink:0;">${isPlaying ? svgPause : svgPlay}</button>
+    <button id="mp-next" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;display:grid;place-items:center;">${svgNext}</button>
+    <button id="mp-close" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;display:grid;place-items:center;">${svgClose}</button>
   `;
   musicPlayerEl.querySelector('#mp-play').addEventListener('click', togglePlay);
   musicPlayerEl.querySelector('#mp-prev').addEventListener('click', () => { currentTrack = (currentTrack - 1 + TRACKS.length) % TRACKS.length; loadTrack(true); });
   musicPlayerEl.querySelector('#mp-next').addEventListener('click', () => { currentTrack = (currentTrack + 1) % TRACKS.length; loadTrack(true); });
   musicPlayerEl.querySelector('#mp-close').addEventListener('click', () => {
     musicOn = false;
+    document.body.classList.remove('music-playing');
     musicBtn.classList.remove('music-active');
-    musicBtn.textContent = '🎵';
-    audioEl.pause();
-    musicPlayerEl.remove();
-    musicPlayerEl = null;
-    audioEl = null;
+    if (audioEl) audioEl.pause();
+    if (musicPlayerEl) { musicPlayerEl.remove(); musicPlayerEl = null; audioEl = null; }
   });
 }
 
@@ -243,7 +247,6 @@ function loadTrack(autoplay = false) {
   updatePlayerUI();
   if (autoplay) {
     audioEl.play().catch(() => {});
-    musicPlayerEl.querySelector('#mp-play').textContent = '⏸';
   }
 }
 
@@ -252,11 +255,11 @@ function togglePlay() {
   if (audioEl.paused) {
     if (!audioEl.src) audioEl.src = TRACKS[currentTrack].src;
     audioEl.play().then(() => {
-      if (musicPlayerEl) musicPlayerEl.querySelector('#mp-play').textContent = '⏸';
+      updatePlayerUI();
     }).catch(() => {});
   } else {
     audioEl.pause();
-    if (musicPlayerEl) musicPlayerEl.querySelector('#mp-play').textContent = '▶';
+    updatePlayerUI();
   }
 }
 
@@ -264,13 +267,13 @@ if (musicBtn) {
   musicBtn.addEventListener('click', () => {
     musicOn = !musicOn;
     if (musicOn) {
+      document.body.classList.add('music-playing');
       musicBtn.classList.add('music-active');
-      musicBtn.textContent = '🔊';
       buildAudioPlayer();
       togglePlay();
     } else {
+      document.body.classList.remove('music-playing');
       musicBtn.classList.remove('music-active');
-      musicBtn.textContent = '🎵';
       if (audioEl) audioEl.pause();
       if (musicPlayerEl) { musicPlayerEl.remove(); musicPlayerEl = null; audioEl = null; }
     }
@@ -386,7 +389,19 @@ function getExerciseSets(dayIdx, exId) {
   return state.workoutLogs[key][exId];
 }
 
-// Render: TODAY TAB
+// ── Estimated calorie burn for workout days (simple formula) ──
+function estimateCaloriesBurned(dayIdx) {
+  const day = WEEKLY_PLAN[dayIdx];
+  if (!day || day.isRest) return 0;
+  const w = (state.profile && state.profile.weight) || 86;
+  // ~5–6 kcal/min for moderate resistance training
+  const mins = parseInt(day.duration) || 45;
+  return Math.round(w * 0.065 * mins);
+}
+
+// ═══════════════════════════════════════════
+// RENDER: TODAY TAB
+// ═══════════════════════════════════════════
 function renderTodayTab() {
   const day = WEEKLY_PLAN[selectedDayIndex];
   const dateStr = getTodayDateStr();
@@ -449,7 +464,10 @@ function renderTodayTab() {
   if (day.isRest) {
     html += `
       <section class="card">
-        <h3 class="card-title">🧘 Dinlenme & Toparlanma Rehberi</h3>
+        <h3 class="card-title">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M5 8h13v9a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8z"/><path d="M12 2v6"/></svg>
+          Dinlenme &amp; Toparlanma Rehberi
+        </h3>
         <div class="check-list">
           ${day.restTasks.map((t, i) => `
             <label class="check-item">
@@ -468,13 +486,18 @@ function renderTodayTab() {
     return;
   }
 
-  // Warmup Card (Desk worker posture)
+  // Warmup Card — DEFAULT KAPALI
   const warmupState = state.warmupDone[dateStr] || {};
+  const checkedCount = Object.values(warmupState).filter(Boolean).length;
   html += `
     <section class="card">
       <div class="card-header-row" id="toggle-warmup">
-        <h3 class="card-title">🔥 5 Dk Isınma & Masa Başı Postür</h3>
-        <span>${warmupOpen ? '▲' : '▼'}</span>
+        <h3 class="card-title">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          5 Dk Isınma &amp; Postür
+          ${checkedCount > 0 ? `<span style="font-size:12px;color:var(--success);font-weight:600;">${checkedCount}/${WARMUP_ROUTINE.length}</span>` : ''}
+        </h3>
+        <svg class="lucide-icon chevron-icon ${warmupOpen ? 'open' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
       ${warmupOpen ? `
         <div class="check-list">
@@ -499,7 +522,9 @@ function renderTodayTab() {
         <div class="ex-top">
           <div class="ex-thumb" data-open-ex="${exId}">
             ${getExerciseSVG(ex.visualKey)}
-            <span class="ex-thumb-zoom">🔍</span>
+            <span class="ex-thumb-zoom">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            </span>
           </div>
           <div class="ex-info">
             <span class="ex-muscle">${exIdx + 1}. ${ex.muscle}</span>
@@ -509,7 +534,6 @@ function renderTodayTab() {
               <span>⏳ ${ex.rest}s</span>
               <span>💡 ${ex.startWeight}</span>
             </div>
-            <button class="btn-guide" data-open-ex="${exId}">👁️ Görsel & Form Rehberi</button>
           </div>
         </div>
         <div class="sets-grid">
@@ -522,7 +546,10 @@ function renderTodayTab() {
                 value="${s.reps}" data-set-input="${exId}|${sIdx}|reps" aria-label="Tekrar" />
               <button class="set-check-btn ${s.done ? 'checked' : ''}"
                 data-toggle-set="${exId}|${sIdx}" aria-label="Seti Tamamla">
-                ${s.done ? '✓' : '○'}
+                ${s.done
+                  ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+                  : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`
+                }
               </button>
             </div>
           `).join('')}
@@ -533,7 +560,10 @@ function renderTodayTab() {
 
   html += `
     <button class="btn-primary ${isDayDone ? 'completed' : ''}" id="complete-day-btn">
-      ${isDayDone ? '✅ Bugünkü Antrenman Tamamlandı!' : '🏁 Antrenmanı Tamamla & Kaydet'}
+      ${isDayDone
+        ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Bugünkü Antrenman Tamamlandı!`
+        : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Antrenmanı Tamamla &amp; Kaydet`
+      }
     </button>
   `;
 
@@ -602,6 +632,10 @@ function bindTodayEvents() {
     completeBtn.addEventListener('click', () => {
       if (!state.completedDays.includes(selectedDayIndex)) {
         state.completedDays.push(selectedDayIndex);
+        // Log estimated calorie burn for today
+        const today = getTodayDateStr();
+        if (!state.calorieLog) state.calorieLog = {};
+        state.calorieLog[today] = estimateCaloriesBurned(selectedDayIndex);
       } else {
         state.completedDays = state.completedDays.filter(d => d !== selectedDayIndex);
       }
@@ -612,7 +646,9 @@ function bindTodayEvents() {
   }
 }
 
-// Render: NUTRITION TAB
+// ═══════════════════════════════════════════
+// RENDER: NUTRITION TAB
+// ═══════════════════════════════════════════
 function renderNutritionTab() {
   const dateStr = getTodayDateStr();
   const isTodayRest = WEEKLY_PLAN[todayDayIndex].isRest;
@@ -631,7 +667,7 @@ function renderNutritionTab() {
   let html = `
     <section class="hero-card">
       <span class="badge">${p.weight} KG • ${p.height} CM • ${p.age} YAŞ</span>
-      <h2>Beslenme & Su Planı</h2>
+      <h2>Beslenme &amp; Su Planı</h2>
       <p class="hero-sub">Günlük öğün ve su takibi.</p>
     </section>
 
@@ -649,7 +685,10 @@ function renderNutritionTab() {
 
     <section class="card water-card">
       <div>
-        <h3 class="card-title">💧 Günlük Su Takibi</h3>
+        <h3 class="card-title">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+          Günlük Su Takibi
+        </h3>
         <p style="margin:2px 0 0;font-size:13px;color:var(--text-muted);">
           <strong>${(nState.waterMl / 1000).toFixed(2)} L</strong> / ${plan.waterLiters} L
         </p>
@@ -704,48 +743,254 @@ function renderNutritionTab() {
   });
 }
 
-// Render: PROGRESS TAB
+// ═══════════════════════════════════════════
+// CHART HELPERS — Lightweight SVG/Canvas charts
+// ═══════════════════════════════════════════
+function drawLineChart(canvasId, labels, values, color = '#0E7E8E', unit = '') {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 300;
+  const H = 110;
+  canvas.width = W;
+  canvas.height = H;
+
+  if (!values.length || values.every(v => v === null)) {
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Henüz veri yok', W / 2, H / 2);
+    return;
+  }
+
+  const pad = { top: 14, bottom: 24, left: 12, right: 12 };
+  const validVals = values.filter(v => v !== null);
+  const minV = Math.min(...validVals);
+  const maxV = Math.max(...validVals);
+  const range = maxV - minV || 1;
+
+  const getX = i => pad.left + (i / Math.max(values.length - 1, 1)) * (W - pad.left - pad.right);
+  const getY = v => pad.top + (1 - (v - minV) / range) * (H - pad.top - pad.bottom);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  [0.25, 0.5, 0.75].forEach(r => {
+    const y = pad.top + r * (H - pad.top - pad.bottom);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+  });
+
+  // Fill gradient under curve
+  const grad = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+  grad.addColorStop(0, color.replace(')', ', 0.35)').replace('rgb', 'rgba'));
+  grad.addColorStop(1, color.replace(')', ', 0)').replace('rgb', 'rgba'));
+  if (!color.startsWith('rgb')) {
+    // hex color — use direct approach
+  }
+
+  // Draw line
+  ctx.beginPath();
+  let first = true;
+  values.forEach((v, i) => {
+    if (v === null) return;
+    const x = getX(i);
+    const y = getY(v);
+    if (first) { ctx.moveTo(x, y); first = false; }
+    else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Dots
+  values.forEach((v, i) => {
+    if (v === null) return;
+    const x = getX(i);
+    const y = getY(v);
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = 'var(--surface)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+
+  // Last value label
+  if (validVals.length) {
+    const lastIdx = values.map((v, i) => v !== null ? i : -1).filter(i => i >= 0).pop();
+    const lx = getX(lastIdx);
+    const ly = getY(values[lastIdx]);
+    ctx.fillStyle = color;
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = lx > W - 50 ? 'right' : 'left';
+    ctx.fillText(`${values[lastIdx]}${unit}`, lx + (lx > W - 50 ? -6 : 6), ly - 6);
+  }
+
+  // X-axis labels
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'center';
+  const step = Math.ceil(labels.length / 6);
+  labels.forEach((lbl, i) => {
+    if (i % step === 0 || i === labels.length - 1) {
+      ctx.fillText(lbl, getX(i), H - 4);
+    }
+  });
+}
+
+function drawBarChart(canvasId, labels, values, color = '#22D3B0', unit = '') {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 300;
+  const H = 110;
+  canvas.width = W;
+  canvas.height = H;
+
+  if (!values.length || values.every(v => !v)) {
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Henüz veri yok', W / 2, H / 2);
+    return;
+  }
+
+  const pad = { top: 10, bottom: 24, left: 8, right: 8 };
+  const maxV = Math.max(...values) || 1;
+  const barW = Math.max(4, (W - pad.left - pad.right) / values.length - 3);
+
+  values.forEach((v, i) => {
+    const x = pad.left + i * ((W - pad.left - pad.right) / values.length);
+    const barH = ((v || 0) / maxV) * (H - pad.top - pad.bottom);
+    const y = H - pad.bottom - barH;
+
+    ctx.fillStyle = color + '55';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, y, barW, barH, 3) : ctx.rect(x, y, barW, barH);
+    ctx.fill();
+
+    if (v) {
+      ctx.fillStyle = color;
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${v}`, x + barW / 2, y - 3);
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(labels[i], x + barW / 2, H - 5);
+  });
+}
+
+// Build last N-day data arrays from state
+function buildMeasurementData(field, n = 10) {
+  const all = [...(state.measurements || [])].slice(-n);
+  return {
+    labels: all.map(m => m.date.slice(5)),   // MM-DD
+    values: all.map(m => m[field] ?? null)
+  };
+}
+
+function buildCalorieData(n = 10) {
+  const log = state.calorieLog || {};
+  const keys = Object.keys(log).sort().slice(-n);
+  return {
+    labels: keys.map(k => k.slice(5)),
+    values: keys.map(k => log[k] || 0)
+  };
+}
+
+// ═══════════════════════════════════════════
+// RENDER: PROGRESS TAB
+// ═══════════════════════════════════════════
 function renderProgressTab() {
   const p = state.profile || { age: 37, height: 180, weight: 86 };
   const bmi = (p.weight / Math.pow(p.height / 100, 2)).toFixed(1);
-  const latest = state.measurements[state.measurements.length - 1] || { weight: p.weight, rightArm: 35, leftArm: 34.8 };
-  const first = state.measurements[0] || latest;
+  const msrs = state.measurements;
+  const latest = msrs[msrs.length - 1] || { weight: p.weight, rightArm: 35, leftArm: 34.8 };
+  const first = msrs[0] || latest;
   const armDelta = (latest.rightArm - first.rightArm).toFixed(1);
   const weightDelta = (latest.weight - first.weight).toFixed(1);
   const totalWorkouts = state.completedDays ? state.completedDays.filter(d => !WEEKLY_PLAN[d].isRest).length : 0;
 
+  const wDeltaSign = parseFloat(weightDelta) > 0 ? '+' : '';
+  const aDeltaSign = parseFloat(armDelta) > 0 ? '+' : '';
+
   let html = `
     <section class="hero-card">
-      <span class="badge">PROFİL & GELİŞİM</span>
-      <h2>Ölçü & Profil Bilgileri</h2>
-      <div class="hero-stats">
-        <span class="stat-chip">🎂 ${p.age} Yaş</span>
-        <span class="stat-chip">📏 ${p.height} cm</span>
-        <span class="stat-chip">⚖️ ${latest.weight} kg (${weightDelta >= 0 ? '+' : ''}${weightDelta})</span>
-        <span class="stat-chip">🧮 VKİ ${bmi}</span>
-        <span class="stat-chip">💪 Sağ Kol: ${latest.rightArm} cm (${armDelta >= 0 ? '+' : ''}${armDelta})</span>
+      <span class="badge">İLERLEME GRAFİKLERİ</span>
+      <h2>Vücut &amp; Antrenman Takibi</h2>
+      <p class="hero-sub">Ölçümlerini gir, gelişimini gözlemle.</p>
+    </section>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <span class="stat-value">${latest.weight}<small style="font-size:14px"> kg</small></span>
+        <span class="stat-name">Güncel Kilo</span>
+        <span class="stat-delta ${parseFloat(weightDelta) > 0 ? 'delta-pos' : 'delta-neg'}">${wDeltaSign}${weightDelta} kg</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-value">${bmi}</span>
+        <span class="stat-name">VKİ</span>
+        <span class="stat-delta" style="color:var(--text-muted);">${parseFloat(bmi) < 25 ? '✅ Normal' : '⚠️ Fazla'}</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-value">${latest.rightArm}<small style="font-size:14px"> cm</small></span>
+        <span class="stat-name">Sağ Kol</span>
+        <span class="stat-delta ${parseFloat(armDelta) >= 0 ? 'delta-pos' : 'delta-neg'}">${aDeltaSign}${armDelta} cm</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-value">${totalWorkouts}</span>
+        <span class="stat-name">Bu hafta antrenman</span>
+        <span class="stat-delta" style="color:var(--text-muted);">/5 gün</span>
+      </div>
+    </div>
+
+    <section class="card">
+      <h3 class="card-title">
+        <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+        Yakılan Kalori (Tahmini)
+      </h3>
+      <div class="chart-wrap">
+        <canvas class="chart-canvas" id="chart-cal"></canvas>
       </div>
     </section>
 
     <section class="card">
-      <h3 class="card-title">👤 Profil Düzenle (Yaş & Boy)</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
-        <div>
-          <label class="field-label">Yaş</label>
-          <input id="prof-age" type="number" min="14" max="99" class="set-input" value="${p.age}" />
-        </div>
-        <div>
-          <label class="field-label">Boy (cm)</label>
-          <input id="prof-height" type="number" min="120" max="230" class="set-input" value="${p.height}" />
-        </div>
+      <h3 class="card-title">
+        <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Kilo Grafiği (kg)
+      </h3>
+      <div class="chart-wrap">
+        <canvas class="chart-canvas" id="chart-weight"></canvas>
       </div>
-      <button class="btn-primary" id="save-profile-btn">Profili Kaydet</button>
     </section>
 
     <section class="card">
-      <h3 class="card-title">📏 Haftalık Ölçüm Ekle</h3>
+      <h3 class="card-title">
+        <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        Kol Çevresi (cm)
+      </h3>
+      <div class="chart-wrap" style="margin-bottom:8px;">
+        <div class="chart-label" style="color:var(--accent);">▸ Sağ Kol</div>
+        <canvas class="chart-canvas" id="chart-rarm"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-label" style="color:var(--success);">▸ Sol Kol</div>
+        <canvas class="chart-canvas" id="chart-larm"></canvas>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title">
+        <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Haftalık Ölçüm Ekle
+      </h3>
       <p style="font-size:12px;color:var(--text-muted);margin:4px 0 10px;">
-        💾 Veriler <strong>telefon/tarayıcı hafızasına (localStorage)</strong> kaydedilir. Uygulama silinmediği sürece kalır.
+        💾 Veriler tarayıcı hafızasına kaydedilir.
       </p>
       <div class="input-grid">
         <div>
@@ -761,45 +1006,118 @@ function renderProgressTab() {
           <input id="inp-larm" type="number" step="0.1" class="set-input" value="${latest.leftArm}" />
         </div>
       </div>
-      <button class="btn-primary" id="save-measure-btn">📊 Ölçümü Kaydet</button>
+      <button class="btn-primary" id="save-measure-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Ölçümü Kaydet
+      </button>
     </section>
 
     <section class="card">
-      <h3 class="card-title">📋 Antrenman Kayıtları Hakkında</h3>
+      <h3 class="card-title">
+        <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Ölçüm Geçmişi
+      </h3>
+      <div class="history-list">
+        ${msrs.length === 0
+          ? '<p style="font-size:13px;color:var(--text-muted);">Henüz ölçüm eklenmedi.</p>'
+          : msrs.slice().reverse().map(m => `
+            <div class="history-row">
+              <span>${m.date}</span>
+              <strong>${m.weight} kg • Sağ: ${m.rightArm} cm • Sol: ${m.leftArm} cm</strong>
+            </div>
+          `).join('')
+        }
+      </div>
+    </section>
+  `;
+
+  mainContent.innerHTML = html;
+
+  // Draw charts after DOM is ready
+  requestAnimationFrame(() => {
+    const cal = buildCalorieData(14);
+    drawBarChart('chart-cal', cal.labels, cal.values, '#22D3B0', ' kcal');
+
+    const wt = buildMeasurementData('weight', 12);
+    drawLineChart('chart-weight', wt.labels, wt.values, '#0E7E8E', ' kg');
+
+    const ra = buildMeasurementData('rightArm', 12);
+    drawLineChart('chart-rarm', ra.labels, ra.values, '#15A8BB', ' cm');
+
+    const la = buildMeasurementData('leftArm', 12);
+    drawLineChart('chart-larm', la.labels, la.values, '#22D3B0', ' cm');
+  });
+
+  document.getElementById('save-measure-btn').addEventListener('click', () => {
+    const w = parseFloat(document.getElementById('inp-weight').value);
+    const r = parseFloat(document.getElementById('inp-rarm').value);
+    const l = parseFloat(document.getElementById('inp-larm').value);
+    if (!isNaN(w) && !isNaN(r) && !isNaN(l)) {
+      state.measurements.push({ date: getTodayDateStr(), weight: w, rightArm: r, leftArm: l });
+      if (!state.profile) state.profile = { age: 37, height: 180, weight: w };
+      else state.profile.weight = w;
+      saveState();
+      renderProgressTab();
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// RENDER: PROFILE TAB
+// ═══════════════════════════════════════════
+function renderProfileTab() {
+  const p = state.profile || { age: 37, height: 180, weight: 86 };
+  const bmi = (p.weight / Math.pow(p.height / 100, 2)).toFixed(1);
+  const totalWorkouts = state.completedDays ? state.completedDays.filter(d => !WEEKLY_PLAN[d].isRest).length : 0;
+
+  let html = `
+    <section class="hero-card">
+      <span class="badge">PROFİL</span>
+      <h2>👤 Profil Bilgileri</h2>
+      <div class="hero-stats">
+        <span class="stat-chip">🎂 ${p.age} Yaş</span>
+        <span class="stat-chip">📏 ${p.height} cm</span>
+        <span class="stat-chip">⚖️ ${p.weight} kg</span>
+        <span class="stat-chip">🧮 VKİ ${bmi}</span>
+        <span class="stat-chip">🏋️ ${totalWorkouts} Antrenman</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title">
+        <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Profil Düzenle
+      </h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
+        <div>
+          <label class="field-label">Yaş</label>
+          <input id="prof-age" type="number" min="14" max="99" class="set-input" value="${p.age}" />
+        </div>
+        <div>
+          <label class="field-label">Boy (cm)</label>
+          <input id="prof-height" type="number" min="120" max="230" class="set-input" value="${p.height}" />
+        </div>
+      </div>
+      <button class="btn-primary" id="save-profile-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Profili Kaydet
+      </button>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title">
+        <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Antrenman Kayıtları Hakkında
+      </h3>
       <p style="font-size:13px;color:var(--text-muted);margin:6px 0 0;line-height:1.6;">
-        <strong>"Antrenmanı Tamamla"</strong> bastığında, o günün tamamlandığı <span style="color:var(--success);">🔥 seri sayacına</span> işlenir ve set/tekrar/ağırlık kayıtların <strong>tarayıcı hafızasına</strong> otomatik kaydedilir.
+        <strong>"Antrenmanı Tamamla"</strong> bastığında, o günün tamamlandığı
+        <span style="color:var(--success);">🔥 seri sayacına</span> işlenir ve set/tekrar/ağırlık kayıtların
+        <strong>tarayıcı hafızasına</strong> otomatik kaydedilir.
         <br><br>
-        📌 Veriler: Set tik attığın an, ağırlık/tekrar girdiğin an anında kaydedilir. <strong>İnternet kesilse bile</strong> kaybolmaz.
+        📌 Set tik attığın an, ağırlık/tekrar girdiğin an anında kaydedilir. <strong>İnternet kesilse bile</strong> kaybolmaz.
         <br><br>
         🏋️ Bu haftaki tamamlanan antrenman: <strong>${totalWorkouts} gün</strong>
       </p>
-    </section>
-
-    <section class="card">
-      <h3 class="card-title">🗂️ Ölçüm Geçmişi</h3>
-      <div class="history-list">
-        ${state.measurements.length === 0 ? '<p style="font-size:13px;color:var(--text-muted);">Henüz ölçüm eklenmedi.</p>' : state.measurements.slice().reverse().map(m => `
-          <div class="history-row">
-            <span>${m.date}</span>
-            <strong>${m.weight} kg • Sağ: ${m.rightArm} cm • Sol: ${m.leftArm} cm</strong>
-          </div>
-        `).join('')}
-      </div>
-    </section>
-
-    <section class="card">
-      <h3 class="card-title">📲 WebAPK Kurulum & Güncelleme</h3>
-      <p style="font-size:13px;color:var(--text-muted);margin:6px 0 10px;">
-        Telefonda Chrome/Safari menüsünden <strong>"Ana Ekrana Ekle"</strong> veya <strong>"Uygulamayı Yükle"</strong> seçeneğine dokunarak tam ekran uygulama gibi kullanabilirsin.
-      </p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-secondary" id="force-update-btn" style="border-color:rgba(34,211,176,0.4);color:var(--success);">
-          🔄 Uygulamayı Güncelle (Veriler Korunur)
-        </button>
-        <button class="btn-secondary" id="reset-data-btn" style="color:#FCA5A5;border-color:rgba(239,68,68,0.3);">
-          Tüm Verileri Sıfırla
-        </button>
-      </div>
     </section>
   `;
 
@@ -811,21 +1129,111 @@ function renderProgressTab() {
     if (!isNaN(age) && !isNaN(height)) {
       state.profile = { ...state.profile, age, height };
       saveState();
-      renderProgressTab();
+      renderProfileTab();
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// RENDER: SETTINGS TAB
+// ═══════════════════════════════════════════
+function renderSettingsTab() {
+  const isLight = document.documentElement.dataset.theme === 'light';
+
+  let html = `
+    <section class="hero-card">
+      <span class="badge">AYARLAR</span>
+      <h2>⚙️ Uygulama Ayarları</h2>
+      <p class="hero-sub">Tema, ses, güncelleme ve veri yönetimi.</p>
+    </section>
+
+    <section class="card">
+      <div class="settings-row">
+        <span class="settings-row-label">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          Açık Tema
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="settings-theme-toggle" ${isLight ? 'checked' : ''} />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <span class="settings-row-label">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          Müzik Çal
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="settings-music-toggle" ${musicOn ? 'checked' : ''} />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title" style="margin-bottom:12px;">
+        <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        WebAPK Kurulum &amp; Güncelleme
+      </h3>
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;">
+        Telefonda Chrome/Safari menüsünden <strong>"Ana Ekrana Ekle"</strong> veya <strong>"Uygulamayı Yükle"</strong> seçerek tam ekran uygulama gibi kullan.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-secondary" id="force-update-btn" style="border-color:rgba(34,211,176,0.4);color:var(--success);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Güncelle (Veri Korunur)
+        </button>
+        <button class="btn-secondary" id="reset-data-btn" style="color:#FCA5A5;border-color:rgba(239,68,68,0.3);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FCA5A5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          Tüm Verileri Sıfırla
+        </button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title" style="margin-bottom:8px;">
+        <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Hakkında
+      </h3>
+      <p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.6;">
+        <strong>KolGücü PWA</strong> — Evde Dambıl Antrenman &amp; Beslenme Uygulaması<br>
+        37 yaş • 180 cm • 86 kg • Masa başı çalışanı<br>
+        5 gün/hafta • Dambıl 2–20 kg • Mat • Ev egzersizleri
+      </p>
+    </section>
+  `;
+
+  mainContent.innerHTML = html;
+
+  document.getElementById('settings-theme-toggle').addEventListener('change', (e) => {
+    const moonEl = document.getElementById('theme-icon-moon');
+    const sunEl = document.getElementById('theme-icon-sun');
+    if (e.target.checked) {
+      document.documentElement.setAttribute('data-theme', 'light');
+      localStorage.setItem('kolgucu_theme', 'light');
+      if (moonEl) moonEl.classList.add('hidden');
+      if (sunEl) sunEl.classList.remove('hidden');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem('kolgucu_theme', 'dark');
+      if (moonEl) moonEl.classList.remove('hidden');
+      if (sunEl) sunEl.classList.add('hidden');
     }
   });
 
-  document.getElementById('save-measure-btn').addEventListener('click', () => {
-    const w = parseFloat(document.getElementById('inp-weight').value);
-    const r = parseFloat(document.getElementById('inp-rarm').value);
-    const l = parseFloat(document.getElementById('inp-larm').value);
-    if (!isNaN(w) && !isNaN(r) && !isNaN(l)) {
-      state.measurements.push({ date: getTodayDateStr(), weight: w, rightArm: r, leftArm: l });
-      // Profil kilosunu da güncelle
-      if (!state.profile) state.profile = { age: 37, height: 180, weight: w };
-      else state.profile.weight = w;
-      saveState();
-      renderProgressTab();
+  document.getElementById('settings-music-toggle').addEventListener('change', (e) => {
+    if (e.target.checked && !musicOn) {
+      musicOn = true;
+      document.body.classList.add('music-playing');
+      musicBtn.classList.add('music-active');
+      buildAudioPlayer();
+      togglePlay();
+    } else if (!e.target.checked && musicOn) {
+      musicOn = false;
+      document.body.classList.remove('music-playing');
+      musicBtn.classList.remove('music-active');
+      if (audioEl) audioEl.pause();
+      if (musicPlayerEl) { musicPlayerEl.remove(); musicPlayerEl = null; audioEl = null; }
     }
   });
 
@@ -848,12 +1256,14 @@ function renderProgressTab() {
       localStorage.removeItem(STORAGE_KEY);
       state = loadState();
       updateHeader();
-      renderProgressTab();
+      renderSettingsTab();
     }
   });
 }
 
+// ═══════════════════════════════════════════
 // Tab Switching
+// ═══════════════════════════════════════════
 function switchTab(tabName) {
   activeTab = tabName;
   document.querySelectorAll('.nav-item').forEach(btn => {
@@ -862,6 +1272,8 @@ function switchTab(tabName) {
   if (tabName === 'today') renderTodayTab();
   else if (tabName === 'nutrition') renderNutritionTab();
   else if (tabName === 'progress') renderProgressTab();
+  else if (tabName === 'profile') renderProfileTab();
+  else if (tabName === 'settings') renderSettingsTab();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 

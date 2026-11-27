@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="KolGücü" />
-  <title>KolGücü — Evde Dambıl Antrenman & Beslenme</title>
+  <title>KolGücü — Evde Dambıl Antrenman &amp; Beslenme</title>
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" href="./assets/icon-192.png" />
   <link rel="apple-touch-icon" href="./assets/icon-192.png" />
@@ -18,24 +18,32 @@
     <!-- Animated Energy Lines -->
     <canvas id="energy-canvas" aria-hidden="true"></canvas>
 
-    <!-- Music iframe panel removed — Pixabay blocks iframe embedding -->
     <!-- Top Header -->
     <header class="top-bar">
       <div class="brand">
-        <div class="brand-badge">💪</div>
+        <div class="brand-badge">
+          <!-- dumbbell icon -->
+          <svg class="lucide-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5h11M6.5 17.5h11M3 9.5h18M3 14.5h18"/><rect x="1" y="8" width="4" height="8" rx="1"/><rect x="19" y="8" width="4" height="8" rx="1"/></svg>
+        </div>
         <div>
           <h1>KolGücü</h1>
           <p id="header-date-label">Yükleniyor...</p>
         </div>
       </div>
       <div class="header-actions">
-        <button id="music-toggle-btn" class="icon-btn" title="Müzik Aç/Kapat" aria-label="Müzik Aç/Kapat">🎵</button>
-        <button id="theme-toggle-btn" class="icon-btn" title="Tema Değiştir" aria-label="Tema Değiştir">🌙</button>
+        <button id="music-toggle-btn" class="icon-btn" title="Müzik Aç/Kapat" aria-label="Müzik Aç/Kapat">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </button>
+        <button id="theme-toggle-btn" class="icon-btn" title="Tema Değiştir" aria-label="Tema Değiştir">
+          <svg class="lucide-icon" id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="lucide-icon hidden" id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
         <button id="install-pwa-btn" class="btn-install hidden" title="Uygulamayı Telefona Kur">
-          <span>📲</span> Kur
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Kur
         </button>
         <div class="streak-pill" title="Haftalık Seri">
-          <span>🔥</span>
+          <svg class="lucide-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           <span id="streak-count">0</span>/5
         </div>
       </div>
@@ -59,24 +67,42 @@
       </div>
     </div>
 
-    <!-- Bottom Navigation -->
+    <!-- Bottom Navigation — 5 Tabs -->
     <nav class="bottom-nav" aria-label="Ana Menü">
       <button class="nav-item active" data-tab="today">
-        <span class="nav-icon">🏋️</span>
+        <span class="nav-icon">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5h11M6.5 17.5h11M3 9.5h18M3 14.5h18"/><rect x="1" y="8" width="4" height="8" rx="1"/><rect x="19" y="8" width="4" height="8" rx="1"/></svg>
+        </span>
         <span class="nav-text">Bugün</span>
       </button>
       <button class="nav-item" data-tab="nutrition">
-        <span class="nav-icon">🥩</span>
+        <span class="nav-icon">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        </span>
         <span class="nav-text">Beslenme</span>
       </button>
       <button class="nav-item" data-tab="progress">
-        <span class="nav-icon">📈</span>
+        <span class="nav-icon">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+        </span>
         <span class="nav-text">İlerleme</span>
+      </button>
+      <button class="nav-item" data-tab="profile">
+        <span class="nav-icon">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        <span class="nav-text">Profil</span>
+      </button>
+      <button class="nav-item" data-tab="settings">
+        <span class="nav-icon">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </span>
+        <span class="nav-text">Ayarlar</span>
       </button>
     </nav>
   </div>
 
-  <!-- Exercise Visual & Form Modal -->
+  <!-- Exercise Visual Modal -->
   <div id="exercise-modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-backdrop" id="modal-backdrop"></div>
     <div class="modal-sheet">
@@ -86,7 +112,9 @@
           <span id="modal-muscle-tag" class="muscle-tag"></span>
           <h2 id="modal-title">Hareket Adı</h2>
         </div>
-        <button id="modal-close-btn" class="modal-close" aria-label="Kapat">✕</button>
+        <button id="modal-close-btn" class="modal-close" aria-label="Kapat">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       <div id="modal-visual" class="modal-visual"></div>
       <div class="live-anim-pill">● CANLI FORM ANİMASYONU</div>
@@ -106,11 +134,11 @@
           </div>
         </div>
         <div class="tips-card">
-          <h3>🎯 Doğru Form & İpuçları</h3>
+          <h3>🎯 Doğru Form &amp; İpuçları</h3>
           <ul id="modal-tips"></ul>
         </div>
         <div class="tips-card warn-card">
-          <h3>⚠️ Masa Başı & Güvenlik Notu</h3>
+          <h3>⚠️ Masa Başı &amp; Güvenlik Notu</h3>
           <p id="modal-caution"></p>
         </div>
       </div>
