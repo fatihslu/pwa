@@ -1,0 +1,680 @@
+// KolGücü PWA - Interactive Workout, Visuals & Nutrition App
+const STORAGE_KEY = 'kolgucu_pwa_state_v1';
+
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Pzt -> Paz
+
+function getTodayDateStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getWeekId() {
+  const d = new Date();
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() + 4 - day);
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getFullYear()}-W${weekNo}`;
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return {
+    weekId: getWeekId(),
+    completedDays: [], // array of dayIndex completed this week
+    warmupDone: {}, // { dateStr: { w1: true } }
+    workoutLogs: {}, // { "dateStr_dayIndex": { exId: [{ weight, reps, done }] } }
+    lastWeights: {}, // { exId: "8" }
+    nutrition: {}, // { dateStr: { meals: {}, waterMl: 0, mode: 'training' } }
+    measurements: [
+      { date: getTodayDateStr(), weight: 86.0, rightArm: 35.0, leftArm: 34.8 }
+    ]
+  };
+}
+
+let state = loadState();
+
+// Reset weekly completion if new week started
+if (state.weekId !== getWeekId()) {
+  state.weekId = getWeekId();
+  state.completedDays = [];
+  saveState();
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {}
+}
+
+// App UI state
+const todayDayIndex = new Date().getDay();
+let selectedDayIndex = todayDayIndex;
+let activeTab = 'today';
+let warmupOpen = true;
+let timerInterval = null;
+let timerSeconds = 0;
+let deferredInstallPrompt = null;
+
+// DOM Elements
+const mainContent = document.getElementById('main-content');
+const headerDateLabel = document.getElementById('header-date-label');
+const streakCountEl = document.getElementById('streak-count');
+const restTimerBar = document.getElementById('rest-timer-bar');
+const timerDisplay = document.getElementById('timer-display');
+const installBtn = document.getElementById('install-pwa-btn');
+
+// Format Header Date
+function updateHeader() {
+  const now = new Date();
+  const formatted = now.toLocaleDateString('tr-TR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  });
+  headerDateLabel.textContent = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  streakCountEl.textContent = state.completedDays.filter(d => !WEEKLY_PLAN[d].isRest).length;
+}
+
+// Audio Beep for Rest Timer
+function playTimerBeep() {
+  try {
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch (e) {}
+}
+
+function startRestTimer(seconds) {
+  clearInterval(timerInterval);
+  timerSeconds = seconds;
+  restTimerBar.classList.remove('hidden');
+  renderTimerDisplay();
+  timerInterval = setInterval(() => {
+    timerSeconds--;
+    if (timerSeconds <= 0) {
+      clearInterval(timerInterval);
+      restTimerBar.classList.add('hidden');
+      playTimerBeep();
+      return;
+    }
+    renderTimerDisplay();
+  }, 1000);
+}
+
+function renderTimerDisplay() {
+  const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+  const s = String(timerSeconds % 60).padStart(2, '0');
+  timerDisplay.textContent = `${m}:${s}`;
+}
+
+document.getElementById('timer-stop-btn').addEventListener('click', () => {
+  clearInterval(timerInterval);
+  restTimerBar.classList.add('hidden');
+});
+
+document.querySelectorAll('.timer-btn[data-add]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const delta = parseInt(btn.dataset.add, 10);
+    timerSeconds = Math.max(5, timerSeconds + delta);
+    renderTimerDisplay();
+  });
+});
+
+// Modal Logic
+const modal = document.getElementById('exercise-modal');
+function openExerciseModal(exId) {
+  const ex = EXERCISES[exId];
+  if (!ex) return;
+  document.getElementById('modal-muscle-tag').textContent = ex.muscle;
+  document.getElementById('modal-title').textContent = ex.name;
+  document.getElementById('modal-visual').innerHTML = getExerciseSVG(ex.visualKey);
+  document.getElementById('modal-sets-reps').textContent = `${ex.sets} × ${ex.reps}`;
+  document.getElementById('modal-rest').textContent = `${ex.rest} sn`;
+  document.getElementById('modal-start-weight').textContent = ex.startWeight;
+  document.getElementById('modal-tips').innerHTML = ex.tips.map(t => `<li>${t}</li>`).join('');
+  document.getElementById('modal-caution').textContent = ex.caution;
+  modal.classList.remove('hidden');
+}
+
+function closeExerciseModal() {
+  modal.classList.add('hidden');
+}
+
+document.getElementById('modal-close-btn').addEventListener('click', closeExerciseModal);
+document.getElementById('modal-backdrop').addEventListener('click', closeExerciseModal);
+
+// Workout Log Helpers
+function getLogKey(dayIdx) {
+  return `${getTodayDateStr()}_${dayIdx}`;
+}
+
+function getExerciseSets(dayIdx, exId) {
+  const key = getLogKey(dayIdx);
+  if (!state.workoutLogs[key]) state.workoutLogs[key] = {};
+  if (!state.workoutLogs[key][exId]) {
+    const ex = EXERCISES[exId];
+    const defaultW = state.lastWeights[exId] || '';
+    state.workoutLogs[key][exId] = Array.from({ length: ex.sets }, () => ({
+      weight: defaultW,
+      reps: ex.reps.split('-')[0].replace(/\D/g, '') || '12',
+      done: false
+    }));
+  }
+  return state.workoutLogs[key][exId];
+}
+
+// Render: TODAY TAB
+function renderTodayTab() {
+  const day = WEEKLY_PLAN[selectedDayIndex];
+  const dateStr = getTodayDateStr();
+  const isToday = selectedDayIndex === todayDayIndex;
+  const isDayDone = state.completedDays.includes(selectedDayIndex);
+
+  // Day Selector Strip
+  let html = `<div class="day-strip">`;
+  DAY_ORDER.forEach(idx => {
+    const d = WEEKLY_PLAN[idx];
+    const cls = [
+      'day-pill',
+      idx === selectedDayIndex ? 'active' : '',
+      idx === todayDayIndex ? 'is-today' : '',
+      state.completedDays.includes(idx) ? 'done-day' : ''
+    ].filter(Boolean).join(' ');
+    html += `<button class="${cls}" data-select-day="${idx}">${d.short}</button>`;
+  });
+  html += `</div>`;
+
+  // Hero Card
+  html += `
+    <section class="hero-card">
+      <span class="badge ${day.isRest ? 'badge-rest' : ''}">
+        ${isToday ? 'BUGÜN • ' : ''}${day.name.toUpperCase()} — ${day.focusBadge}
+      </span>
+      <h2>${day.title}</h2>
+      <p class="hero-sub">${day.subtitle}</p>
+      <div class="hero-stats">
+        <span class="stat-chip">⏱️ ${day.duration}</span>
+        ${!day.isRest ? `<span class="stat-chip">🏋️ ${day.exercises.length} Hareket</span>` : ''}
+        <span class="stat-chip">🏠 Dambıl + Mat</span>
+      </div>
+  `;
+
+  if (!day.isRest) {
+    let totalSets = 0;
+    let doneSets = 0;
+    day.exercises.forEach(exId => {
+      const sets = getExerciseSets(selectedDayIndex, exId);
+      totalSets += sets.length;
+      doneSets += sets.filter(s => s.done).length;
+    });
+    const pct = totalSets ? Math.round((doneSets / totalSets) * 100) : 0;
+    html += `
+      <div class="progress-wrap">
+        <div class="progress-head">
+          <span>Antrenman İlerlemesi</span>
+          <strong>${doneSets}/${totalSets} Set (%${pct})</strong>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:${pct}%"></div>
+        </div>
+      </div>
+    `;
+  }
+  html += `</section>`;
+
+  // Rest Day View
+  if (day.isRest) {
+    html += `
+      <section class="card">
+        <h3 class="card-title">🧘 Dinlenme & Toparlanma Rehberi</h3>
+        <div class="check-list">
+          ${day.restTasks.map((t, i) => `
+            <label class="check-item">
+              <input type="checkbox" data-rest-task="${i}" />
+              <span>${t}</span>
+            </label>
+          `).join('')}
+        </div>
+      </section>
+      <button class="btn-primary ${isDayDone ? 'completed' : ''}" id="complete-day-btn">
+        ${isDayDone ? '✅ Dinlenme Günü Tamamlandı' : 'Dinlenme Hedeflerini Tamamla'}
+      </button>
+    `;
+    mainContent.innerHTML = html;
+    bindTodayEvents();
+    return;
+  }
+
+  // Warmup Card (Desk worker posture)
+  const warmupState = state.warmupDone[dateStr] || {};
+  html += `
+    <section class="card">
+      <div class="card-header-row" id="toggle-warmup">
+        <h3 class="card-title">🔥 5 Dk Isınma & Masa Başı Postür</h3>
+        <span>${warmupOpen ? '▲' : '▼'}</span>
+      </div>
+      ${warmupOpen ? `
+        <div class="check-list">
+          ${WARMUP_ROUTINE.map(w => `
+            <label class="check-item ${warmupState[w.id] ? 'checked' : ''}">
+              <input type="checkbox" data-warmup="${w.id}" ${warmupState[w.id] ? 'checked' : ''} />
+              <span>${w.text}</span>
+            </label>
+          `).join('')}
+        </div>
+      ` : ''}
+    </section>
+  `;
+
+  // Exercise Cards
+  day.exercises.forEach((exId, exIdx) => {
+    const ex = EXERCISES[exId];
+    const sets = getExerciseSets(selectedDayIndex, exId);
+    const allDone = sets.every(s => s.done);
+    html += `
+      <article class="exercise-card ${allDone ? 'ex-done' : ''}">
+        <div class="ex-top">
+          <div class="ex-thumb" data-open-ex="${exId}">
+            ${getExerciseSVG(ex.visualKey)}
+            <span class="ex-thumb-zoom">🔍</span>
+          </div>
+          <div class="ex-info">
+            <span class="ex-muscle">${exIdx + 1}. ${ex.muscle}</span>
+            <h3 class="ex-name">${ex.name}</h3>
+            <div class="ex-meta">
+              <span>${ex.sets} Set × ${ex.reps}</span>
+              <span>⏳ ${ex.rest}s</span>
+              <span>💡 ${ex.startWeight}</span>
+            </div>
+            <button class="btn-guide" data-open-ex="${exId}">👁️ Görsel & Form Rehberi</button>
+          </div>
+        </div>
+        <div class="sets-grid">
+          ${sets.map((s, sIdx) => `
+            <div class="set-row ${s.done ? 'set-done' : ''}">
+              <span class="set-num">${sIdx + 1}. Set</span>
+              <input type="number" step="0.5" min="0" class="set-input" placeholder="kg"
+                value="${s.weight}" data-set-input="${exId}|${sIdx}|weight" aria-label="Ağırlık kg" />
+              <input type="number" min="1" class="set-input" placeholder="tekrar"
+                value="${s.reps}" data-set-input="${exId}|${sIdx}|reps" aria-label="Tekrar" />
+              <button class="set-check-btn ${s.done ? 'checked' : ''}"
+                data-toggle-set="${exId}|${sIdx}" aria-label="Seti Tamamla">
+                ${s.done ? '✓' : '○'}
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      </article>
+    `;
+  });
+
+  html += `
+    <button class="btn-primary ${isDayDone ? 'completed' : ''}" id="complete-day-btn">
+      ${isDayDone ? '✅ Bugünkü Antrenman Tamamlandı!' : '🏁 Antrenmanı Tamamla & Kaydet'}
+    </button>
+  `;
+
+  mainContent.innerHTML = html;
+  bindTodayEvents();
+}
+
+function bindTodayEvents() {
+  document.querySelectorAll('[data-select-day]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedDayIndex = parseInt(btn.dataset.selectDay, 10);
+      renderTodayTab();
+    });
+  });
+
+  const toggleWarmupBtn = document.getElementById('toggle-warmup');
+  if (toggleWarmupBtn) {
+    toggleWarmupBtn.addEventListener('click', () => {
+      warmupOpen = !warmupOpen;
+      renderTodayTab();
+    });
+  }
+
+  document.querySelectorAll('[data-warmup]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const dateStr = getTodayDateStr();
+      if (!state.warmupDone[dateStr]) state.warmupDone[dateStr] = {};
+      state.warmupDone[dateStr][cb.dataset.warmup] = cb.checked;
+      saveState();
+      renderTodayTab();
+    });
+  });
+
+  document.querySelectorAll('[data-open-ex]').forEach(el => {
+    el.addEventListener('click', () => openExerciseModal(el.dataset.openEx));
+  });
+
+  document.querySelectorAll('[data-set-input]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const [exId, sIdx, field] = inp.dataset.setInput.split('|');
+      const sets = getExerciseSets(selectedDayIndex, exId);
+      sets[parseInt(sIdx, 10)][field] = inp.value;
+      if (field === 'weight' && inp.value) {
+        state.lastWeights[exId] = inp.value;
+      }
+      saveState();
+    });
+  });
+
+  document.querySelectorAll('[data-toggle-set]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const [exId, sIdx] = btn.dataset.toggleSet.split('|');
+      const sets = getExerciseSets(selectedDayIndex, exId);
+      const idx = parseInt(sIdx, 10);
+      sets[idx].done = !sets[idx].done;
+      saveState();
+      if (sets[idx].done) {
+        startRestTimer(EXERCISES[exId].rest);
+      }
+      renderTodayTab();
+    });
+  });
+
+  const completeBtn = document.getElementById('complete-day-btn');
+  if (completeBtn) {
+    completeBtn.addEventListener('click', () => {
+      if (!state.completedDays.includes(selectedDayIndex)) {
+        state.completedDays.push(selectedDayIndex);
+      } else {
+        state.completedDays = state.completedDays.filter(d => d !== selectedDayIndex);
+      }
+      saveState();
+      updateHeader();
+      renderTodayTab();
+    });
+  }
+}
+
+// Render: PROGRAM TAB
+function renderProgramTab() {
+  let html = `
+    <section class="hero-card">
+      <span class="badge">5 GÜNLÜK EV PROGRAMI</span>
+      <h2>Kol & İri Üst Vücut Planı</h2>
+      <p class="hero-sub">Sehpasız, sadece ayarlanabilir dambıl ve mat ile kol kalınlığı (biceps + triceps) ve geniş omuz çerçevesi.</p>
+    </section>
+    <section class="card">
+      <h3 class="card-title">📈 Ağırlık Artırma Kuralı (Progresif Yükleme)</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin:8px 0 0;">
+        Bir harekette hedeflenen tüm set ve tekrarları formu bozmadan temiz çıkarabildiğinde, bir sonraki hafta dambıl ağırlığını <strong>1–2 kg artır</strong>.
+      </p>
+    </section>
+  `;
+
+  DAY_ORDER.forEach(idx => {
+    const d = WEEKLY_PLAN[idx];
+    const done = state.completedDays.includes(idx);
+    html += `
+      <section class="card">
+        <div class="card-header-row" data-jump-day="${idx}">
+          <div>
+            <span class="ex-muscle">${d.name} ${done ? '• ✅ TAMAMLANDI' : ''}</span>
+            <h3 class="card-title">${d.title}</h3>
+            <p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">${d.subtitle} (${d.duration})</p>
+          </div>
+          <button class="btn-secondary" data-jump-day="${idx}">Aç →</button>
+        </div>
+        ${!d.isRest ? `
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+            ${d.exercises.map(exId => `
+              <button class="btn-guide" style="margin-top:0;" data-open-ex="${exId}">
+                ${EXERCISES[exId].name}
+              </button>
+            `).join('')}
+          </div>
+        ` : ''}
+      </section>
+    `;
+  });
+
+  mainContent.innerHTML = html;
+
+  document.querySelectorAll('[data-jump-day]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedDayIndex = parseInt(el.dataset.jumpDay, 10);
+      switchTab('today');
+    });
+  });
+
+  document.querySelectorAll('[data-open-ex]').forEach(el => {
+    el.addEventListener('click', () => openExerciseModal(el.dataset.openEx));
+  });
+}
+
+// Render: NUTRITION TAB
+function renderNutritionTab() {
+  const dateStr = getTodayDateStr();
+  const isTodayRest = WEEKLY_PLAN[todayDayIndex].isRest;
+  if (!state.nutrition[dateStr]) {
+    state.nutrition[dateStr] = {
+      meals: {},
+      waterMl: 0,
+      mode: isTodayRest ? 'rest' : 'training'
+    };
+  }
+  const nState = state.nutrition[dateStr];
+  const plan = NUTRITION_PLAN[nState.mode];
+  const waterTargetMl = plan.waterLiters * 1000;
+
+  let html = `
+    <section class="hero-card">
+      <span class="badge">86 KG • 180 CM • İRİ GÖRÜNÜM</span>
+      <h2>Beslenme & Su Planı</h2>
+      <p class="hero-sub">Temiz kas kütlesi artışı için yüksek protein ve dengeli karbonhidrat.</p>
+    </section>
+
+    <div class="seg-toggle">
+      <button class="seg-btn ${nState.mode === 'training' ? 'active' : ''}" data-nmode="training">🏋️ Antrenman Günü</button>
+      <button class="seg-btn ${nState.mode === 'rest' ? 'active' : ''}" data-nmode="rest">🧘 Dinlenme Günü</button>
+    </div>
+
+    <div class="macro-grid">
+      <div class="macro-box"><strong>${plan.calories}</strong><span>kcal</span></div>
+      <div class="macro-box"><strong style="color:var(--accent)">${plan.protein}g</strong><span>Protein</span></div>
+      <div class="macro-box"><strong>${plan.carbs}g</strong><span>Karb</span></div>
+      <div class="macro-box"><strong>${plan.fat}g</strong><span>Yağ</span></div>
+    </div>
+
+    <section class="card water-card">
+      <div>
+        <h3 class="card-title">💧 Günlük Su Takibi</h3>
+        <p style="margin:2px 0 0;font-size:13px;color:var(--text-muted);">
+          <strong>${(nState.waterMl / 1000).toFixed(2)} L</strong> / ${plan.waterLiters} L
+        </p>
+      </div>
+      <div class="water-btns">
+        <button class="btn-secondary" data-water="-250">-250ml</button>
+        <button class="btn-secondary" style="background:var(--accent);border-color:var(--accent);color:#fff;" data-water="250">+250ml</button>
+      </div>
+    </section>
+
+    ${plan.meals.map(m => {
+      const checked = !!nState.meals[m.id];
+      return `
+        <label class="card meal-card ${checked ? 'ex-done' : ''}">
+          <input type="checkbox" data-meal="${m.id}" ${checked ? 'checked' : ''} />
+          <div>
+            <div class="meal-time">${m.time}</div>
+            <div class="meal-title">${m.title}</div>
+            <p class="meal-items">${m.items}</p>
+            <div class="meal-macros">${m.macros}</div>
+          </div>
+        </label>
+      `;
+    }).join('')}
+  `;
+
+  mainContent.innerHTML = html;
+
+  document.querySelectorAll('[data-nmode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      nState.mode = btn.dataset.nmode;
+      saveState();
+      renderNutritionTab();
+    });
+  });
+
+  document.querySelectorAll('[data-water]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const delta = parseInt(btn.dataset.water, 10);
+      nState.waterMl = Math.max(0, Math.min(waterTargetMl + 1500, nState.waterMl + delta));
+      saveState();
+      renderNutritionTab();
+    });
+  });
+
+  document.querySelectorAll('[data-meal]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      nState.meals[cb.dataset.meal] = cb.checked;
+      saveState();
+      renderNutritionTab();
+    });
+  });
+}
+
+// Render: PROGRESS TAB
+function renderProgressTab() {
+  const latest = state.measurements[state.measurements.length - 1] || { weight: 86, rightArm: 35, leftArm: 34.8 };
+  const first = state.measurements[0] || latest;
+  const armDelta = (latest.rightArm - first.rightArm).toFixed(1);
+
+  let html = `
+    <section class="hero-card">
+      <span class="badge">GELİŞİM TAKİBİ</span>
+      <h2>Ölçü & Güç Kaydı</h2>
+      <p class="hero-sub">Haftalık kol ölçüsü (soğuk, sıkılı) ve kilo değişimini buradan takip et.</p>
+      <div class="hero-stats">
+        <span class="stat-chip">⚖️ Güncel: ${latest.weight} kg</span>
+        <span class="stat-chip">💪 Sağ Kol: ${latest.rightArm} cm (${armDelta >= 0 ? '+' : ''}${armDelta})</span>
+        <span class="stat-chip">💪 Sol Kol: ${latest.leftArm} cm</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title">📏 Yeni Ölçüm Ekle</h3>
+      <div class="input-grid">
+        <div>
+          <label class="field-label">Kilo (kg)</label>
+          <input id="inp-weight" type="number" step="0.1" class="set-input" value="${latest.weight}" />
+        </div>
+        <div>
+          <label class="field-label">Sağ Kol (cm)</label>
+          <input id="inp-rarm" type="number" step="0.1" class="set-input" value="${latest.rightArm}" />
+        </div>
+        <div>
+          <label class="field-label">Sol Kol (cm)</label>
+          <input id="inp-larm" type="number" step="0.1" class="set-input" value="${latest.leftArm}" />
+        </div>
+      </div>
+      <button class="btn-primary" id="save-measure-btn">Ölçümü Kaydet</button>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title">🗂️ Ölçüm Geçmişi</h3>
+      <div class="history-list">
+        ${state.measurements.slice().reverse().map(m => `
+          <div class="history-row">
+            <span>${m.date}</span>
+            <strong>${m.weight} kg • Sağ: ${m.rightArm} cm • Sol: ${m.leftArm} cm</strong>
+          </div>
+        `).join('')}
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title">📲 WebAPK Kurulum Bilgisi</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin:6px 0 10px;">
+        Telefonda Chrome/Safari menüsünden <strong>"Ana Ekrana Ekle"</strong> veya <strong>"Uygulamayı Yükle"</strong> seçeneğine dokunarak tam ekran uygulama gibi kullanabilirsin.
+      </p>
+      <button class="btn-secondary" id="reset-data-btn" style="color:#FCA5A5;border-color:rgba(239,68,68,0.3);">
+        Tüm Verileri Sıfırla
+      </button>
+    </section>
+  `;
+
+  mainContent.innerHTML = html;
+
+  document.getElementById('save-measure-btn').addEventListener('click', () => {
+    const w = parseFloat(document.getElementById('inp-weight').value);
+    const r = parseFloat(document.getElementById('inp-rarm').value);
+    const l = parseFloat(document.getElementById('inp-larm').value);
+    if (!isNaN(w) && !isNaN(r) && !isNaN(l)) {
+      state.measurements.push({ date: getTodayDateStr(), weight: w, rightArm: r, leftArm: l });
+      saveState();
+      renderProgressTab();
+    }
+  });
+
+  document.getElementById('reset-data-btn').addEventListener('click', () => {
+    if (confirm('Tüm antrenman ve ölçü kayıtların silinsin mi?')) {
+      localStorage.removeItem(STORAGE_KEY);
+      state = loadState();
+      updateHeader();
+      renderProgressTab();
+    }
+  });
+}
+
+// Tab Switching
+function switchTab(tabName) {
+  activeTab = tabName;
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  if (tabName === 'today') renderTodayTab();
+  else if (tabName === 'program') renderProgramTab();
+  else if (tabName === 'nutrition') renderNutritionTab();
+  else if (tabName === 'progress') renderProgressTab();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// PWA Install Prompt
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtn.classList.remove('hidden');
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installBtn.classList.add('hidden');
+});
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+// Init
+updateHeader();
+switchTab('today');
