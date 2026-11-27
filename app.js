@@ -66,6 +66,66 @@ let warmupOpen = true;
 let timerInterval = null;
 let timerSeconds = 0;
 let deferredInstallPrompt = null;
+let musicOn = false;
+
+// ── Energy Lines Canvas ──────────────────────────────────────
+const energyCanvas = document.getElementById('energy-canvas');
+const ctx2d = energyCanvas ? energyCanvas.getContext('2d') : null;
+
+const lines = Array.from({ length: 18 }, (_, i) => ({
+  x: Math.random() * window.innerWidth,
+  y: Math.random() * window.innerHeight,
+  angle: Math.random() * Math.PI * 2,
+  speed: 0.5 + Math.random() * 1.1,
+  length: 60 + Math.random() * 100,
+  width: 0.6 + Math.random() * 1.4,
+  opacity: 0.15 + Math.random() * 0.45,
+  hue: Math.random() > 0.5 ? '14, 126, 142' : '168, 221, 229'
+}));
+
+function resizeCanvas() {
+  if (!energyCanvas) return;
+  energyCanvas.width = window.innerWidth;
+  energyCanvas.height = window.innerHeight;
+}
+
+function animateLines() {
+  if (!ctx2d || !energyCanvas) return;
+  ctx2d.clearRect(0, 0, energyCanvas.width, energyCanvas.height);
+  const isDark = document.documentElement.dataset.theme !== 'light';
+  lines.forEach(l => {
+    l.x += Math.cos(l.angle) * l.speed;
+    l.y += Math.sin(l.angle) * l.speed;
+    if (l.x < -l.length) l.x = energyCanvas.width + l.length;
+    if (l.x > energyCanvas.width + l.length) l.x = -l.length;
+    if (l.y < -l.length) l.y = energyCanvas.height + l.length;
+    if (l.y > energyCanvas.height + l.length) l.y = -l.length;
+    l.angle += (Math.random() - 0.5) * 0.025;
+    const alpha = isDark ? l.opacity : l.opacity * 0.55;
+    const grad = ctx2d.createLinearGradient(
+      l.x, l.y,
+      l.x + Math.cos(l.angle) * l.length,
+      l.y + Math.sin(l.angle) * l.length
+    );
+    grad.addColorStop(0, `rgba(${l.hue},0)`);
+    grad.addColorStop(0.5, `rgba(${l.hue},${alpha})`);
+    grad.addColorStop(1, `rgba(${l.hue},0)`);
+    ctx2d.beginPath();
+    ctx2d.moveTo(l.x, l.y);
+    ctx2d.lineTo(
+      l.x + Math.cos(l.angle) * l.length,
+      l.y + Math.sin(l.angle) * l.length
+    );
+    ctx2d.strokeStyle = grad;
+    ctx2d.lineWidth = l.width;
+    ctx2d.stroke();
+  });
+  requestAnimationFrame(animateLines);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+animateLines();
 
 // DOM Elements
 const mainContent = document.getElementById('main-content');
@@ -74,6 +134,50 @@ const streakCountEl = document.getElementById('streak-count');
 const restTimerBar = document.getElementById('rest-timer-bar');
 const timerDisplay = document.getElementById('timer-display');
 const installBtn = document.getElementById('install-pwa-btn');
+const themBtn = document.getElementById('theme-toggle-btn');
+const musicBtn = document.getElementById('music-toggle-btn');
+const musicFrameWrap = document.getElementById('music-frame-wrap');
+const pixabayFrame = document.getElementById('pixabay-frame');
+
+// ── Theme toggle ──
+const savedTheme = localStorage.getItem('kolgucu_theme') || 'dark';
+if (savedTheme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+if (themBtn) {
+  themBtn.textContent = savedTheme === 'light' ? '🌙' : '☀️';
+  themBtn.addEventListener('click', () => {
+    const isLight = document.documentElement.dataset.theme === 'light';
+    if (isLight) {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem('kolgucu_theme', 'dark');
+      themBtn.textContent = '☀️';
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      localStorage.setItem('kolgucu_theme', 'light');
+      themBtn.textContent = '🌙';
+    }
+  });
+}
+
+// ── Music toggle ──
+const PIXABAY_URL = 'https://pixabay.com/music/search/?playlist=32818059&autoplay=1';
+if (musicBtn) {
+  musicBtn.addEventListener('click', () => {
+    musicOn = !musicOn;
+    if (musicOn) {
+      musicBtn.classList.add('music-active');
+      musicBtn.textContent = '🔊';
+      musicFrameWrap.classList.remove('hidden');
+      if (pixabayFrame && !pixabayFrame.src.includes('pixabay')) {
+        pixabayFrame.src = PIXABAY_URL;
+      }
+    } else {
+      musicBtn.classList.remove('music-active');
+      musicBtn.textContent = '🎵';
+      musicFrameWrap.classList.add('hidden');
+      if (pixabayFrame) pixabayFrame.src = '';
+    }
+  });
+}
 
 // Format Header Date
 function updateHeader() {

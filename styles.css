@@ -1,21 +1,44 @@
+/* ============================================================
+   KolGücü — Theme System (Dark / Light) + Animated Lines
+   Dark palette: #011427 / #0E7E8E / #B4E9F0
+   Light palette: #EFEFEF / #0E7E8E / #011427
+   ============================================================ */
+
 :root {
-  --bg: #050824;
-  --surface: #0D1545;
-  --surface-2: #182366;
-  --border: rgba(101, 209, 244, 0.18);
-  --text: #F8FAFC;
-  --text-muted: #9FC2F8;
-  --accent: #1E74F4;
-  --accent-soft: rgba(30, 116, 244, 0.22);
-  --cyan: #65D1F4;
-  --yellow: #F2F7A1;
-  --gold: #E9E186;
-  --teal: #297596;
-  --success: #65D1F4;
-  --success-soft: rgba(101, 209, 244, 0.16);
-  --warn: #E9E186;
+  /* ── DARK (default) ── */
+  --bg: #010F1E;
+  --surface: #021829;
+  --surface-2: #042038;
+  --border: rgba(14, 126, 142, 0.28);
+  --text: #E8F4F6;
+  --text-muted: #7EC8D4;
+  --accent: #0E7E8E;
+  --accent-2: #15A8BB;
+  --accent-soft: rgba(14, 126, 142, 0.20);
+  --cyan: #A8DDE5;
+  --success: #22D3B0;
+  --success-soft: rgba(34, 211, 176, 0.16);
+  --warn: #F2F7A1;
   --radius: 16px;
   --nav-h: 72px;
+  --line-color: rgba(14, 126, 142, 0.35);
+}
+
+[data-theme="light"] {
+  --bg: #EFEFEF;
+  --surface: #FFFFFF;
+  --surface-2: #E2EEF0;
+  --border: rgba(14, 126, 142, 0.25);
+  --text: #011427;
+  --text-muted: #3A6B78;
+  --accent: #0E7E8E;
+  --accent-2: #0A6070;
+  --accent-soft: rgba(14, 126, 142, 0.14);
+  --cyan: #0E7E8E;
+  --success: #0E9070;
+  --success-soft: rgba(14, 144, 112, 0.14);
+  --warn: #9B7D00;
+  --line-color: rgba(14, 126, 142, 0.20);
 }
 
 * {
@@ -31,6 +54,18 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
   line-height: 1.45;
   overscroll-behavior-y: contain;
+  transition: background 0.35s ease, color 0.35s ease;
+}
+
+/* ── Animated Energy Lines Canvas ── */
+#energy-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.65;
 }
 
 .hidden {
@@ -44,6 +79,8 @@ html, body {
   display: flex;
   flex-direction: column;
   padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px);
+  position: relative;
+  z-index: 1;
 }
 
 /* Header */
@@ -55,9 +92,13 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: rgba(0, 0, 100, 0.85);
-  backdrop-filter: blur(12px);
+  background: rgba(1, 15, 30, 0.88);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
+}
+
+[data-theme="light"] .top-bar {
+  background: rgba(239, 239, 239, 0.90);
 }
 
 .brand {
@@ -70,11 +111,11 @@ html, body {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #1E74F4, #65D1F4);
+  background: linear-gradient(135deg, #0E7E8E, #15A8BB);
   display: grid;
   place-items: center;
   font-size: 20px;
-  box-shadow: 0 4px 14px rgba(30, 116, 244, 0.45);
+  box-shadow: 0 4px 14px rgba(14, 126, 142, 0.5);
 }
 
 .brand h1 {
@@ -99,7 +140,7 @@ html, body {
 .btn-install {
   background: var(--accent-soft);
   color: var(--accent);
-  border: 1px solid rgba(255, 90, 54, 0.35);
+  border: 1px solid rgba(14, 126, 142, 0.45);
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 12px;
@@ -120,6 +161,32 @@ html, body {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Theme & Music Buttons */
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 17px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.icon-btn.music-active {
+  background: rgba(14, 126, 142, 0.25);
+  border-color: var(--accent);
+  animation: music-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes music-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(14, 126, 142, 0.5); }
+  50% { box-shadow: 0 0 0 7px rgba(14, 126, 142, 0); }
 }
 
 /* Main */
@@ -198,7 +265,7 @@ html, body {
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-2, var(--accent));
   margin-bottom: 8px;
 }
 
@@ -473,7 +540,7 @@ html, body {
 /* Primary Action Button */
 .btn-primary {
   width: 100%;
-  background: linear-gradient(135deg, #1E74F4, #568FF5);
+  background: linear-gradient(135deg, #0E7E8E, #15A8BB);
   color: #fff;
   border: none;
   border-radius: 14px;
@@ -481,13 +548,14 @@ html, body {
   font-size: 15px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(30, 116, 244, 0.35);
+  box-shadow: 0 6px 20px rgba(14, 126, 142, 0.38);
+  transition: opacity 0.2s ease;
 }
 
 .btn-primary.completed {
-  background: linear-gradient(135deg, #297596, #65D1F4);
-  color: #050824;
-  box-shadow: 0 6px 20px rgba(101, 209, 244, 0.25);
+  background: linear-gradient(135deg, #22D3B0, #0E7E8E);
+  color: #011427;
+  box-shadow: 0 6px 20px rgba(34, 211, 176, 0.3);
 }
 
 .btn-secondary {
@@ -509,8 +577,8 @@ html, body {
   transform: translateX(-50%);
   width: calc(100% - 28px);
   max-width: 512px;
-  background: #1E293B;
-  border: 1px solid rgba(255, 90, 54, 0.5);
+  background: #021829;
+  border: 1px solid rgba(14, 126, 142, 0.6);
   border-radius: 16px;
   padding: 10px 14px;
   display: flex;
@@ -569,12 +637,16 @@ html, body {
   max-width: 540px;
   height: calc(var(--nav-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  background: rgba(13, 21, 69, 0.95);
+  background: rgba(1, 20, 39, 0.96);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   z-index: 25;
+}
+
+[data-theme="light"] .bottom-nav {
+  background: rgba(239, 239, 239, 0.96);
 }
 
 .nav-item {
@@ -589,6 +661,7 @@ html, body {
   cursor: pointer;
   font-size: 11px;
   font-weight: 600;
+  transition: color 0.15s ease;
 }
 
 .nav-icon {
@@ -596,7 +669,32 @@ html, body {
 }
 
 .nav-item.active {
-  color: var(--accent);
+  color: var(--accent-2, var(--accent));
+}
+
+/* Music Iframe */
+.music-frame-wrap {
+  display: none;
+  position: fixed;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px);
+  right: 12px;
+  width: 290px;
+  height: 80px;
+  z-index: 40;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.6);
+  border: 1px solid var(--border);
+}
+
+.music-frame-wrap.visible {
+  display: block;
+}
+
+.music-frame-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 
 /* Nutrition */
@@ -619,10 +717,11 @@ html, body {
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .seg-btn.active {
-  background: var(--accent);
+  background: linear-gradient(135deg, #0E7E8E, #15A8BB);
   color: #fff;
 }
 
