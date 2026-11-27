@@ -21,7 +21,7 @@
   --success: #22D3B0;
   --success-soft: rgba(34, 211, 176, 0.16);
   --warn: #FDE68A;
-  --glass-blur: blur(18px) saturate(160%);
+  --glass-blur: blur(4px) saturate(140%);
   --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --radius: 18px;
   --nav-h: 68px;
@@ -44,7 +44,7 @@
   --success: #0D9488;
   --success-soft: rgba(13, 148, 136, 0.14);
   --warn: #92600A;
-  --glass-blur: blur(18px) saturate(160%);
+  --glass-blur: blur(4px) saturate(140%);
   --card-shadow: 0 8px 28px rgba(14, 126, 142, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.90);
   --line-color: rgba(14, 126, 142, 0.25);
 }

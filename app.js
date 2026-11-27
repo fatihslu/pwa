@@ -84,10 +84,10 @@ const energyNodes = Array.from({ length: 16 }, () => ({
 }));
 
 const energyWaves = [
-  { amp: 28, freq: 0.008, speed: 0.022, yRatio: 0.22, phase: 0,   width: 1.6, color: '14, 126, 142' },
-  { amp: 36, freq: 0.006, speed: -0.018, yRatio: 0.45, phase: 1.8, width: 1.3, color: '21, 168, 187' },
-  { amp: 22, freq: 0.011, speed: 0.026, yRatio: 0.68, phase: 3.4, width: 1.2, color: '168, 221, 229' },
-  { amp: 32, freq: 0.007, speed: -0.015, yRatio: 0.85, phase: 5.1, width: 1.4, color: '14, 126, 142' }
+  { amp: 28, freq: 0.008, speed: 0.022, yRatio: 0.22, phase: 0,   width: 2.6, color: '14, 126, 142' },
+  { amp: 36, freq: 0.006, speed: -0.018, yRatio: 0.45, phase: 1.8, width: 2.2, color: '21, 168, 187' },
+  { amp: 22, freq: 0.011, speed: 0.026, yRatio: 0.68, phase: 3.4, width: 2.0, color: '168, 221, 229' },
+  { amp: 32, freq: 0.007, speed: -0.015, yRatio: 0.85, phase: 5.1, width: 2.4, color: '14, 126, 142' }
 ];
 
 let energyTick = 0;
@@ -110,7 +110,7 @@ function animateLines() {
   energyWaves.forEach(w => {
     w.phase += w.speed;
     const baseY = H * w.yRatio;
-    const alpha = isDark ? 0.42 : 0.30;
+    const alpha = isDark ? 0.62 : 0.46;
     const grad = ctx2d.createLinearGradient(0, baseY, W, baseY);
     grad.addColorStop(0, `rgba(${w.color}, 0)`);
     grad.addColorStop(0.25, `rgba(${w.color}, ${alpha})`);
@@ -135,12 +135,12 @@ function animateLines() {
     const sparkY = baseY
       + Math.sin(sparkX * w.freq + w.phase) * w.amp
       + Math.cos(sparkX * w.freq * 0.5 - w.phase * 0.7) * (w.amp * 0.45);
-    const sparkGrad = ctx2d.createRadialGradient(sparkX, sparkY, 0, sparkX, sparkY, 10);
-    sparkGrad.addColorStop(0, `rgba(${w.color}, ${isDark ? 0.75 : 0.55})`);
+    const sparkGrad = ctx2d.createRadialGradient(sparkX, sparkY, 0, sparkX, sparkY, 18);
+    sparkGrad.addColorStop(0, `rgba(${w.color}, ${isDark ? 0.92 : 0.72})`);
     sparkGrad.addColorStop(1, `rgba(${w.color}, 0)`);
     ctx2d.fillStyle = sparkGrad;
     ctx2d.beginPath();
-    ctx2d.arc(sparkX, sparkY, 10, 0, Math.PI * 2);
+    ctx2d.arc(sparkX, sparkY, 18, 0, Math.PI * 2);
     ctx2d.fill();
   });
 
@@ -160,12 +160,12 @@ function animateLines() {
       const dy = a.y - b.y;
       const dist = Math.hypot(dx, dy);
       if (dist < maxDist) {
-        const lineAlpha = (1 - dist / maxDist) * (isDark ? 0.40 : 0.28);
+        const lineAlpha = (1 - dist / maxDist) * (isDark ? 0.55 : 0.40);
         ctx2d.beginPath();
         ctx2d.moveTo(a.x, a.y);
         ctx2d.lineTo(b.x, b.y);
         ctx2d.strokeStyle = `rgba(14, 126, 142, ${lineAlpha})`;
-        ctx2d.lineWidth = 0.9;
+        ctx2d.lineWidth = 1.3;
         ctx2d.stroke();
       }
     }
