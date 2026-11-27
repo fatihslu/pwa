@@ -161,11 +161,16 @@ if (themBtn) {
 // ── Music toggle ──
 // Kullanılan müzikler: Pixabay & ccMixter lisanssız spor/rap beatler (CDN direkt mp3)
 const TRACKS = [
-  { title: 'Sport Beat Vol.1', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-  { title: 'Sport Beat Vol.2', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
-  { title: 'Sport Beat Vol.3', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
-  { title: 'Sport Beat Vol.4', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
-  { title: 'Sport Beat Vol.5', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3' }
+  { title: 'Sport Beat Vol.1',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+  { title: 'Sport Beat Vol.2',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
+  { title: 'Sport Beat Vol.3',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
+  { title: 'Sport Beat Vol.4',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
+  { title: 'Sport Beat Vol.5',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3' },
+  { title: 'Sport Beat Vol.6',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3' },
+  { title: 'Sport Beat Vol.7',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3' },
+  { title: 'Sport Beat Vol.8',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3' },
+  { title: 'Sport Beat Vol.9',  artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3' },
+  { title: 'Sport Beat Vol.10', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3' }
 ];
 
 let currentTrack = 0;
@@ -706,23 +711,25 @@ function renderProgressTab() {
   const latest = state.measurements[state.measurements.length - 1] || { weight: p.weight, rightArm: 35, leftArm: 34.8 };
   const first = state.measurements[0] || latest;
   const armDelta = (latest.rightArm - first.rightArm).toFixed(1);
+  const weightDelta = (latest.weight - first.weight).toFixed(1);
+  const totalWorkouts = state.completedDays ? state.completedDays.filter(d => !WEEKLY_PLAN[d].isRest).length : 0;
 
   let html = `
     <section class="hero-card">
       <span class="badge">PROFİL & GELİŞİM</span>
       <h2>Ölçü & Profil Bilgileri</h2>
-      <p class="hero-sub">Yaş, boy, kilo bilgilerini ve haftalık kol ölçünü buradan güncelle.</p>
       <div class="hero-stats">
         <span class="stat-chip">🎂 ${p.age} Yaş</span>
         <span class="stat-chip">📏 ${p.height} cm</span>
-        <span class="stat-chip">⚖️ ${p.weight} kg (VKİ: ${bmi})</span>
+        <span class="stat-chip">⚖️ ${latest.weight} kg (${weightDelta >= 0 ? '+' : ''}${weightDelta})</span>
+        <span class="stat-chip">🧮 VKİ ${bmi}</span>
         <span class="stat-chip">💪 Sağ Kol: ${latest.rightArm} cm (${armDelta >= 0 ? '+' : ''}${armDelta})</span>
       </div>
     </section>
 
     <section class="card">
-      <h3 class="card-title">👤 Profilimi Düzenle (Yaş, Boy, Kilo)</h3>
-      <div class="input-grid">
+      <h3 class="card-title">👤 Profil Düzenle (Yaş & Boy)</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
         <div>
           <label class="field-label">Yaş</label>
           <input id="prof-age" type="number" min="14" max="99" class="set-input" value="${p.age}" />
@@ -731,16 +738,15 @@ function renderProgressTab() {
           <label class="field-label">Boy (cm)</label>
           <input id="prof-height" type="number" min="120" max="230" class="set-input" value="${p.height}" />
         </div>
-        <div>
-          <label class="field-label">Kilo (kg)</label>
-          <input id="prof-weight" type="number" step="0.1" min="35" max="250" class="set-input" value="${p.weight}" />
-        </div>
       </div>
       <button class="btn-primary" id="save-profile-btn">Profili Kaydet</button>
     </section>
 
     <section class="card">
-      <h3 class="card-title">📏 Yeni Ölçüm Ekle</h3>
+      <h3 class="card-title">📏 Haftalık Ölçüm Ekle</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:4px 0 10px;">
+        💾 Veriler <strong>telefon/tarayıcı hafızasına (localStorage)</strong> kaydedilir. Uygulama silinmediği sürece kalır.
+      </p>
       <div class="input-grid">
         <div>
           <label class="field-label">Kilo (kg)</label>
@@ -755,13 +761,24 @@ function renderProgressTab() {
           <input id="inp-larm" type="number" step="0.1" class="set-input" value="${latest.leftArm}" />
         </div>
       </div>
-      <button class="btn-primary" id="save-measure-btn">Ölçümü Kaydet</button>
+      <button class="btn-primary" id="save-measure-btn">📊 Ölçümü Kaydet</button>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title">📋 Antrenman Kayıtları Hakkında</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin:6px 0 0;line-height:1.6;">
+        <strong>"Antrenmanı Tamamla"</strong> bastığında, o günün tamamlandığı <span style="color:var(--success);">🔥 seri sayacına</span> işlenir ve set/tekrar/ağırlık kayıtların <strong>tarayıcı hafızasına</strong> otomatik kaydedilir.
+        <br><br>
+        📌 Veriler: Set tik attığın an, ağırlık/tekrar girdiğin an anında kaydedilir. <strong>İnternet kesilse bile</strong> kaybolmaz.
+        <br><br>
+        🏋️ Bu haftaki tamamlanan antrenman: <strong>${totalWorkouts} gün</strong>
+      </p>
     </section>
 
     <section class="card">
       <h3 class="card-title">🗂️ Ölçüm Geçmişi</h3>
       <div class="history-list">
-        ${state.measurements.slice().reverse().map(m => `
+        ${state.measurements.length === 0 ? '<p style="font-size:13px;color:var(--text-muted);">Henüz ölçüm eklenmedi.</p>' : state.measurements.slice().reverse().map(m => `
           <div class="history-row">
             <span>${m.date}</span>
             <strong>${m.weight} kg • Sağ: ${m.rightArm} cm • Sol: ${m.leftArm} cm</strong>
@@ -776,7 +793,7 @@ function renderProgressTab() {
         Telefonda Chrome/Safari menüsünden <strong>"Ana Ekrana Ekle"</strong> veya <strong>"Uygulamayı Yükle"</strong> seçeneğine dokunarak tam ekran uygulama gibi kullanabilirsin.
       </p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-secondary" id="force-update-btn" style="border-color:rgba(16,185,129,0.4);color:var(--success);">
+        <button class="btn-secondary" id="force-update-btn" style="border-color:rgba(34,211,176,0.4);color:var(--success);">
           🔄 Uygulamayı Güncelle (Veriler Korunur)
         </button>
         <button class="btn-secondary" id="reset-data-btn" style="color:#FCA5A5;border-color:rgba(239,68,68,0.3);">
@@ -791,9 +808,8 @@ function renderProgressTab() {
   document.getElementById('save-profile-btn').addEventListener('click', () => {
     const age = parseInt(document.getElementById('prof-age').value, 10);
     const height = parseInt(document.getElementById('prof-height').value, 10);
-    const weight = parseFloat(document.getElementById('prof-weight').value);
-    if (!isNaN(age) && !isNaN(height) && !isNaN(weight)) {
-      state.profile = { age, height, weight };
+    if (!isNaN(age) && !isNaN(height)) {
+      state.profile = { ...state.profile, age, height };
       saveState();
       renderProgressTab();
     }
@@ -805,6 +821,9 @@ function renderProgressTab() {
     const l = parseFloat(document.getElementById('inp-larm').value);
     if (!isNaN(w) && !isNaN(r) && !isNaN(l)) {
       state.measurements.push({ date: getTodayDateStr(), weight: w, rightArm: r, leftArm: l });
+      // Profil kilosunu da güncelle
+      if (!state.profile) state.profile = { age: 37, height: 180, weight: w };
+      else state.profile.weight = w;
       saveState();
       renderProgressTab();
     }
