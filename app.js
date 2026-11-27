@@ -159,24 +159,48 @@ if (themBtn) {
 }
 
 // ── Music toggle ──
-const PIXABAY_URL = 'https://pixabay.com/music/search/?playlist=32818059&autoplay=1';
+const PIXABAY_URL = 'https://pixabay.com/music/search/?playlist=32818059';
 if (musicBtn) {
   musicBtn.addEventListener('click', () => {
     musicOn = !musicOn;
     if (musicOn) {
       musicBtn.classList.add('music-active');
       musicBtn.textContent = '🔊';
-      musicFrameWrap.classList.remove('hidden');
-      if (pixabayFrame && !pixabayFrame.src.includes('pixabay')) {
-        pixabayFrame.src = PIXABAY_URL;
+      // Pixabay blocks iframe — open in new tab as most reliable cross-platform approach
+      const win = window.open(PIXABAY_URL, '_blank', 'noopener');
+      if (!win) {
+        // Popup blocked fallback: show link card
+        showMusicToast();
       }
     } else {
       musicBtn.classList.remove('music-active');
       musicBtn.textContent = '🎵';
-      musicFrameWrap.classList.add('hidden');
-      if (pixabayFrame) pixabayFrame.src = '';
     }
   });
+}
+
+function showMusicToast() {
+  let toast = document.getElementById('music-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'music-toast';
+    toast.style.cssText = `
+      position:fixed; bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px);
+      left:50%; transform:translateX(-50%);
+      background:#0E7E8E; color:#fff; padding:12px 18px; border-radius:14px;
+      font-size:13px; font-weight:700; z-index:50; box-shadow:0 6px 24px rgba(0,0,0,0.5);
+      display:flex; align-items:center; gap:10px; max-width:calc(100% - 32px);
+    `;
+    toast.innerHTML = `
+      <span>🎵</span>
+      <span>Müzik yeni sekmede açılamadı.</span>
+      <a href="${PIXABAY_URL}" target="_blank" rel="noopener"
+         style="color:#F2F7A1;font-weight:800;text-decoration:none;">Aç →</a>
+      <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;padding:0;">✕</button>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast?.remove(), 7000);
+  }
 }
 
 // Format Header Date
