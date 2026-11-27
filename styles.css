@@ -7,43 +7,45 @@
 :root {
   /* ── DARK (default) ── */
   --bg: #010F1E;
-  --surface: rgba(2, 24, 41, 0.78);
-  --surface-2: rgba(4, 32, 56, 0.86);
-  --surface-subtle: rgba(255, 255, 255, 0.04);
-  --track-bg: rgba(255, 255, 255, 0.08);
-  --border: rgba(14, 126, 142, 0.28);
+  --surface: rgba(4, 28, 48, 0.48);
+  --surface-2: rgba(14, 126, 142, 0.16);
+  --surface-subtle: rgba(168, 221, 229, 0.06);
+  --track-bg: rgba(168, 221, 229, 0.12);
+  --border: rgba(168, 221, 229, 0.20);
   --text: #E8F4F6;
   --text-muted: #7EC8D4;
   --accent: #0E7E8E;
   --accent-2: #15A8BB;
-  --accent-soft: rgba(14, 126, 142, 0.20);
+  --accent-soft: rgba(14, 126, 142, 0.22);
   --cyan: #A8DDE5;
   --success: #22D3B0;
   --success-soft: rgba(34, 211, 176, 0.16);
   --warn: #FDE68A;
-  --card-shadow: none;
-  --radius: 16px;
+  --glass-blur: blur(18px) saturate(160%);
+  --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --radius: 18px;
   --nav-h: 68px;
   --line-color: rgba(14, 126, 142, 0.35);
 }
 
 [data-theme="light"] {
-  --bg: #F2F8FA;
-  --surface: rgba(255, 255, 255, 0.82);
-  --surface-2: rgba(226, 242, 245, 0.88);
-  --surface-subtle: rgba(14, 126, 142, 0.06);
+  --bg: #EBF5F7;
+  --surface: rgba(255, 255, 255, 0.56);
+  --surface-2: rgba(226, 242, 245, 0.58);
+  --surface-subtle: rgba(14, 126, 142, 0.07);
   --track-bg: rgba(14, 126, 142, 0.14);
-  --border: rgba(14, 126, 142, 0.22);
+  --border: rgba(255, 255, 255, 0.78);
   --text: #010F1E;
   --text-muted: #2C6773;
   --accent: #0E7E8E;
   --accent-2: #15A8BB;
-  --accent-soft: rgba(14, 126, 142, 0.14);
+  --accent-soft: rgba(14, 126, 142, 0.15);
   --cyan: #0E7E8E;
   --success: #0D9488;
   --success-soft: rgba(13, 148, 136, 0.14);
   --warn: #92600A;
-  --card-shadow: 0 2px 12px rgba(1, 15, 30, 0.06);
+  --glass-blur: blur(18px) saturate(160%);
+  --card-shadow: 0 8px 28px rgba(14, 126, 142, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.90);
   --line-color: rgba(14, 126, 142, 0.25);
 }
 
@@ -278,9 +280,12 @@ body.music-playing .app-shell {
 /* Hero Card */
 .hero-card {
   background: linear-gradient(145deg, var(--surface-2), var(--surface));
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
+  box-shadow: var(--card-shadow);
   position: relative;
   overflow: hidden;
 }
@@ -360,7 +365,8 @@ body.music-playing .app-shell {
 /* Collapsible Card */
 .card {
   background: var(--surface);
-  backdrop-filter: blur(8px);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px;
@@ -433,7 +439,8 @@ body.music-playing .app-shell {
 /* Exercise Card */
 .exercise-card {
   background: var(--surface);
-  backdrop-filter: blur(8px);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px;
@@ -821,10 +828,13 @@ body.music-playing .app-shell {
 
 .macro-box {
   background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px 6px;
   text-align: center;
+  box-shadow: var(--card-shadow);
 }
 
 .macro-box strong {
@@ -957,11 +967,14 @@ body.music-playing .app-shell {
 }
 
 .stat-box {
-  background: var(--surface-2);
+  background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 12px;
   text-align: center;
+  box-shadow: var(--card-shadow);
 }
 
 .stat-box .stat-value {
