@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B0E14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="KolGücü" />
+  <title>KolGücü — Evde Dambıl Antrenman & Beslenme</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" href="./assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="./assets/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header -->
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-badge">💪</div>
+        <div>
+          <h1>KolGücü</h1>
+          <p id="header-date-label">Yükleniyor...</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="install-pwa-btn" class="btn-install hidden" title="Uygulamayı Telefona Kur">
+          <span>📲</span> Kur
+        </button>
+        <div class="streak-pill" title="Haftalık Seri">
+          <span>🔥</span>
+          <span id="streak-count">0</span>/5
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Content -->
+    <main id="main-content" class="main-content">
+      <!-- Views rendered by app.js -->
+    </main>
+
+    <!-- Floating Rest Timer Bar -->
+    <div id="rest-timer-bar" class="rest-timer-bar hidden" aria-live="polite">
+      <div class="timer-info">
+        <span class="timer-label">Dinlenme Süresi</span>
+        <span id="timer-display" class="timer-display">01:30</span>
+      </div>
+      <div class="timer-controls">
+        <button class="timer-btn" data-add="-15">-15s</button>
+        <button class="timer-btn" data-add="15">+15s</button>
+        <button id="timer-stop-btn" class="timer-btn timer-btn-stop">Bitir</button>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav" aria-label="Ana Menü">
+      <button class="nav-item active" data-tab="today">
+        <span class="nav-icon">🏋️</span>
+        <span class="nav-text">Bugün</span>
+      </button>
+      <button class="nav-item" data-tab="program">
+        <span class="nav-icon">📅</span>
+        <span class="nav-text">Program</span>
+      </button>
+      <button class="nav-item" data-tab="nutrition">
+        <span class="nav-icon">🥩</span>
+        <span class="nav-text">Beslenme</span>
+      </button>
+      <button class="nav-item" data-tab="progress">
+        <span class="nav-icon">📈</span>
+        <span class="nav-text">İlerleme</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Exercise Visual & Form Modal -->
+  <div id="exercise-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" id="modal-backdrop"></div>
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <div>
+          <span id="modal-muscle-tag" class="muscle-tag"></span>
+          <h2 id="modal-title">Hareket Adı</h2>
+        </div>
+        <button id="modal-close-btn" class="modal-close" aria-label="Kapat">✕</button>
+      </div>
+      <div id="modal-visual" class="modal-visual"></div>
+      <div class="live-anim-pill">● CANLI FORM ANİMASYONU</div>
+      <div class="modal-body">
+        <div class="modal-meta-row">
+          <div class="meta-box">
+            <span class="meta-label">Set × Tekrar</span>
+            <strong id="modal-sets-reps"></strong>
+          </div>
+          <div class="meta-box">
+            <span class="meta-label">Dinlenme</span>
+            <strong id="modal-rest"></strong>
+          </div>
+          <div class="meta-box">
+            <span class="meta-label">Öneri Başlangıç</span>
+            <strong id="modal-start-weight"></strong>
+          </div>
+        </div>
+        <div class="tips-card">
+          <h3>🎯 Doğru Form & İpuçları</h3>
+          <ul id="modal-tips"></ul>
+        </div>
+        <div class="tips-card warn-card">
+          <h3>⚠️ Masa Başı & Güvenlik Notu</h3>
+          <p id="modal-caution"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./visuals.js"></script>
+  <script src="./data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

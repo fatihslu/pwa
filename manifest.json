@@ -1,0 +1,26 @@
+{
+  "name": "KolGücü - Evde Dambıl & Beslenme",
+  "short_name": "KolGücü",
+  "description": "5 günlük evde dambıl kol ve üst vücut antrenman, görsel rehber ve beslenme takip WebAPK'sı.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0E14",
+  "theme_color": "#0B0E14",
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
