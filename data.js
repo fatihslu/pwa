@@ -473,91 +473,77 @@ const WEEKLY_PLAN = {
 const NUTRITION_PLAN = {
   training: {
     label: 'Antrenman Günü',
-    calories: 2600,
-    protein: 170,
-    carbs: 280,
-    fat: 75,
+    calories: 1900,
+    protein: 115,
+    carbs: 155,
+    fat: 72,
     waterLiters: 3.5,
     meals: [
       {
         id: 'm1',
         time: '08:30 • Kahvaltı',
-        title: 'Yüksek Proteinli Güç Kahvaltısı',
-        items: '3 tam yumurta + 2 yumurta beyazı (omlet/haşlama), 60g yulaf ezmesi (süt/yoğurt ile) veya 2 dilim tam buğday ekmeği, 50g lor peyniri, domates/salatalık, 5-6 zeytin.',
-        macros: '42g P • 52g K • 20g Y (~560 kcal)'
+        title: 'Sabah Kahvaltısı',
+        items: '2 yumurta, 2 dilim peynir, 2 dilim ekmek, 10 zeytin, bol yeşillik.',
+        macros: '26g P • 34g K • 22g Y (~440 kcal)'
       },
       {
         id: 'm2',
-        time: '13:00 • Öğle',
-        title: 'Tavuk/Hindi & Pirinç Tabak',
-        items: '180-200g ızgara/tava tavuk göğsü (veya yağsız kıyma), 150-180g pişmiş pirinç veya bulgur pilavı, bol yeşil salata + 1 tatlı kaşığı zeytinyağı.',
-        macros: '48g P • 65g K • 14g Y (~580 kcal)'
+        time: '12:30 • Öğle',
+        title: 'Ana Öğün & Yoğurt',
+        items: 'Çorba / Kuru baklagil / Köfte / Tavuk (tercih edilen) + 1 kase yoğurt.',
+        macros: '36g P • 52g K • 18g Y (~520 kcal)'
       },
       {
         id: 'm3',
-        time: '17:00 • Antrenman Öncesi (45-60 dk önce)',
-        title: 'Enerji & Pump Öğünü',
-        items: '1 büyük muz + 1 sade Türk kahvesi veya filtre kahve + 15g çiğ badem/ceviz (istersen 1 ölçek whey veya 150g süzme yoğurt).',
-        macros: '12g P • 35g K • 9g Y (~270 kcal)'
+        time: '15:30 • Ara Öğün',
+        title: 'Hafif Ara & Kuruyemiş',
+        items: 'Etiform / Buğday patlağı / 3-4 grissini + 3 tam ceviziçi ya da 10 badem (antrenman öncesi sade kahve içebilirsin).',
+        macros: '8g P • 24g K • 14g Y (~260 kcal)'
       },
       {
         id: 'm4',
-        time: '19:30 • Akşam / Antrenman Sonrası',
-        title: 'Kas Onarım Ana Öğünü',
-        items: '200g tavuk/hindi/balık veya yağsız dana eti, 250g fırın/haşlama patates veya 180g pişmiş makarna, 1 kase yoğurt veya cacık.',
-        macros: '50g P • 80g K • 18g Y (~680 kcal)'
-      },
-      {
-        id: 'm5',
-        time: '22:00 • Gece / Ara Öğün',
-        title: 'Yavaş Sindirilen Protein (Kazein)',
-        items: '200g süzme yoğurt veya 100g lor peyniri + 1 tatlı kaşığı bal/tarçın + 4-5 tam ceviz.',
-        macros: '20g P • 18g K • 14g Y (~280 kcal)'
+        time: '18:30 • Akşam',
+        title: 'Protein & Salata Tabak',
+        items: '150 gram et / tavuk / balık, bol salata, 1 dilim ekmek veya 4 kaşık pilav / makarna, 4 kaşık yoğurt.',
+        macros: '45g P • 45g K • 18g Y (~530 kcal)'
       }
     ]
   },
   rest: {
     label: 'Dinlenme Günü',
-    calories: 2300,
-    protein: 170,
-    carbs: 200,
-    fat: 78,
+    calories: 1750,
+    protein: 110,
+    carbs: 130,
+    fat: 70,
     waterLiters: 3.0,
     meals: [
       {
         id: 'r1',
-        time: '09:00 • Kahvaltı',
-        title: 'Protein & Sağlıklı Yağ Odaklı',
-        items: '3 tam yumurta + 50g beyaz peynir/lor, 1 dilim tam buğday ekmeği, yarım avokado veya 8-10 zeytin, bol yeşillik.',
-        macros: '38g P • 25g K • 26g Y (~490 kcal)'
+        time: '08:30 • Kahvaltı',
+        title: 'Sabah Kahvaltısı',
+        items: '2 yumurta, 2 dilim peynir, 2 dilim ekmek, 10 zeytin, bol yeşillik.',
+        macros: '26g P • 34g K • 22g Y (~440 kcal)'
       },
       {
         id: 'r2',
-        time: '13:30 • Öğle',
-        title: 'Et/Tavuk & Sebze',
-        items: '200g tavuk/köfte/balık, 100g pişmiş bulgur veya karabuğday, bol zeytinyağlı salata.',
-        macros: '48g P • 40g K • 18g Y (~520 kcal)'
+        time: '12:30 • Öğle',
+        title: 'Ana Öğün & Yoğurt',
+        items: 'Çorba / Kuru baklagil / Köfte / Tavuk + 1 kase yoğurt.',
+        macros: '36g P • 45g K • 18g Y (~490 kcal)'
       },
       {
         id: 'r3',
-        time: '16:30 • Ara Öğün',
-        title: 'Ofis/Masa Başı Pratik',
-        items: '1 kase (200g) süzme yoğurt veya kefir + 1 avuç çiğ badem/fındık + 1 elma.',
-        macros: '18g P • 28g K • 15g Y (~320 kcal)'
+        time: '15:30 • Ara Öğün',
+        title: 'Hafif Ara & Kuruyemiş',
+        items: 'Etiform / Buğday patlağı / 3-4 grissini + 3 tam ceviziçi ya da 10 badem.',
+        macros: '8g P • 24g K • 14g Y (~260 kcal)'
       },
       {
         id: 'r4',
-        time: '19:30 • Akşam',
-        title: 'Temiz Akşam Yemeği',
-        items: '200g ızgara et/balık/tavuk, zeytinyağlı sebze yemeği (brokoli/kabak/fasulye), 1 kase yoğurt.',
-        macros: '46g P • 35g K • 18g Y (~490 kcal)'
-      },
-      {
-        id: 'r5',
-        time: '22:00 • Gece',
-        title: 'Toparlanma Desteği',
-        items: '100g lor peyniri veya 150g süzme yoğurt + tarçın.',
-        macros: '20g P • 8g K • 5g Y (~160 kcal)'
+        time: '18:30 • Akşam',
+        title: 'Protein & Salata Tabak',
+        items: '150 gram et / tavuk / balık, bol salata, 1 dilim ekmek (veya 4 kaşık pilav/makarna), 4 kaşık yoğurt.',
+        macros: '40g P • 27g K • 16g Y (~420 kcal)'
       }
     ]
   }

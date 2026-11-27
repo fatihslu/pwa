@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kolgucu-pwa-v3';
+const CACHE_NAME = 'kolgucu-pwa-v6';
 const ASSETS = [
   './',
   './index.html',
