@@ -1,15 +1,19 @@
 :root {
-  --bg: #0B0E14;
-  --surface: #141923;
-  --surface-2: #1C2331;
-  --border: rgba(255, 255, 255, 0.08);
-  --text: #F3F4F6;
-  --text-muted: #9CA3AF;
-  --accent: #FF5A36;
-  --accent-soft: rgba(255, 90, 54, 0.14);
-  --success: #10B981;
-  --success-soft: rgba(16, 185, 129, 0.15);
-  --warn: #F59E0B;
+  --bg: #050824;
+  --surface: #0D1545;
+  --surface-2: #182366;
+  --border: rgba(101, 209, 244, 0.18);
+  --text: #F8FAFC;
+  --text-muted: #9FC2F8;
+  --accent: #1E74F4;
+  --accent-soft: rgba(30, 116, 244, 0.22);
+  --cyan: #65D1F4;
+  --yellow: #F2F7A1;
+  --gold: #E9E186;
+  --teal: #297596;
+  --success: #65D1F4;
+  --success-soft: rgba(101, 209, 244, 0.16);
+  --warn: #E9E186;
   --radius: 16px;
   --nav-h: 72px;
 }
@@ -51,7 +55,7 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: rgba(11, 14, 20, 0.88);
+  background: rgba(0, 0, 100, 0.85);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
@@ -66,11 +70,11 @@ html, body {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--accent), #FF8243);
+  background: linear-gradient(135deg, #1E74F4, #65D1F4);
   display: grid;
   place-items: center;
   font-size: 20px;
-  box-shadow: 0 4px 14px rgba(255, 90, 54, 0.35);
+  box-shadow: 0 4px 14px rgba(30, 116, 244, 0.45);
 }
 
 .brand h1 {
@@ -469,7 +473,7 @@ html, body {
 /* Primary Action Button */
 .btn-primary {
   width: 100%;
-  background: linear-gradient(135deg, var(--accent), #FF7849);
+  background: linear-gradient(135deg, #1E74F4, #568FF5);
   color: #fff;
   border: none;
   border-radius: 14px;
@@ -477,12 +481,13 @@ html, body {
   font-size: 15px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(255, 90, 54, 0.3);
+  box-shadow: 0 6px 20px rgba(30, 116, 244, 0.35);
 }
 
 .btn-primary.completed {
-  background: linear-gradient(135deg, var(--success), #059669);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.25);
+  background: linear-gradient(135deg, #297596, #65D1F4);
+  color: #050824;
+  box-shadow: 0 6px 20px rgba(101, 209, 244, 0.25);
 }
 
 .btn-secondary {
@@ -564,11 +569,11 @@ html, body {
   max-width: 540px;
   height: calc(var(--nav-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  background: rgba(20, 25, 35, 0.95);
+  background: rgba(13, 21, 69, 0.95);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   z-index: 25;
 }
 

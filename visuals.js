@@ -33,7 +33,7 @@ function getExerciseSVG(key) {
           <path d="M 0 1 L 10 5 L 0 9 z" fill="#10B981"/>
         </marker>
       </defs>
-      <rect width="240" height="160" rx="12" fill="#0B0E14"/>
+      <rect width="240" height="160" rx="12" fill="#050824"/>
       <rect width="240" height="160" rx="12" fill="url(#grid)"/>
       <line x1="16" y1="142" x2="224" y2="142" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
       ${inner}

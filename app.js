@@ -23,10 +23,15 @@ function getWeekId() {
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (!parsed.profile) parsed.profile = { age: 37, height: 180, weight: 86 };
+      return parsed;
+    }
   } catch (e) {}
   return {
     weekId: getWeekId(),
+    profile: { age: 37, height: 180, weight: 86 },
     completedDays: [], // array of dayIndex completed this week
     warmupDone: {}, // { dateStr: { w1: true } }
     workoutLogs: {}, // { "dateStr_dayIndex": { exId: [{ weight, reps, done }] } }
@@ -405,63 +410,6 @@ function bindTodayEvents() {
   }
 }
 
-// Render: PROGRAM TAB
-function renderProgramTab() {
-  let html = `
-    <section class="hero-card">
-      <span class="badge">5 GÜNLÜK EV PROGRAMI</span>
-      <h2>Kol & İri Üst Vücut Planı</h2>
-      <p class="hero-sub">Sehpasız, sadece ayarlanabilir dambıl ve mat ile kol kalınlığı (biceps + triceps) ve geniş omuz çerçevesi.</p>
-    </section>
-    <section class="card">
-      <h3 class="card-title">📈 Ağırlık Artırma Kuralı (Progresif Yükleme)</h3>
-      <p style="font-size:13px;color:var(--text-muted);margin:8px 0 0;">
-        Bir harekette hedeflenen tüm set ve tekrarları formu bozmadan temiz çıkarabildiğinde, bir sonraki hafta dambıl ağırlığını <strong>1–2 kg artır</strong>.
-      </p>
-    </section>
-  `;
-
-  DAY_ORDER.forEach(idx => {
-    const d = WEEKLY_PLAN[idx];
-    const done = state.completedDays.includes(idx);
-    html += `
-      <section class="card">
-        <div class="card-header-row" data-jump-day="${idx}">
-          <div>
-            <span class="ex-muscle">${d.name} ${done ? '• ✅ TAMAMLANDI' : ''}</span>
-            <h3 class="card-title">${d.title}</h3>
-            <p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">${d.subtitle} (${d.duration})</p>
-          </div>
-          <button class="btn-secondary" data-jump-day="${idx}">Aç →</button>
-        </div>
-        ${!d.isRest ? `
-          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
-            ${d.exercises.map(exId => `
-              <button class="btn-guide" style="margin-top:0;" data-open-ex="${exId}">
-                ${EXERCISES[exId].name}
-              </button>
-            `).join('')}
-          </div>
-        ` : ''}
-      </section>
-    `;
-  });
-
-  mainContent.innerHTML = html;
-
-  document.querySelectorAll('[data-jump-day]').forEach(el => {
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      selectedDayIndex = parseInt(el.dataset.jumpDay, 10);
-      switchTab('today');
-    });
-  });
-
-  document.querySelectorAll('[data-open-ex]').forEach(el => {
-    el.addEventListener('click', () => openExerciseModal(el.dataset.openEx));
-  });
-}
-
 // Render: NUTRITION TAB
 function renderNutritionTab() {
   const dateStr = getTodayDateStr();
@@ -476,12 +424,13 @@ function renderNutritionTab() {
   const nState = state.nutrition[dateStr];
   const plan = NUTRITION_PLAN[nState.mode];
   const waterTargetMl = plan.waterLiters * 1000;
+  const p = state.profile || { age: 37, height: 180, weight: 86 };
 
   let html = `
     <section class="hero-card">
-      <span class="badge">86 KG • 180 CM • İRİ GÖRÜNÜM</span>
+      <span class="badge">${p.weight} KG • ${p.height} CM • ${p.age} YAŞ</span>
       <h2>Beslenme & Su Planı</h2>
-      <p class="hero-sub">Temiz kas kütlesi artışı için yüksek protein ve dengeli karbonhidrat.</p>
+      <p class="hero-sub">Günlük öğün ve su takibi.</p>
     </section>
 
     <div class="seg-toggle">
@@ -555,20 +504,42 @@ function renderNutritionTab() {
 
 // Render: PROGRESS TAB
 function renderProgressTab() {
-  const latest = state.measurements[state.measurements.length - 1] || { weight: 86, rightArm: 35, leftArm: 34.8 };
+  const p = state.profile || { age: 37, height: 180, weight: 86 };
+  const bmi = (p.weight / Math.pow(p.height / 100, 2)).toFixed(1);
+  const latest = state.measurements[state.measurements.length - 1] || { weight: p.weight, rightArm: 35, leftArm: 34.8 };
   const first = state.measurements[0] || latest;
   const armDelta = (latest.rightArm - first.rightArm).toFixed(1);
 
   let html = `
     <section class="hero-card">
-      <span class="badge">GELİŞİM TAKİBİ</span>
-      <h2>Ölçü & Güç Kaydı</h2>
-      <p class="hero-sub">Haftalık kol ölçüsü (soğuk, sıkılı) ve kilo değişimini buradan takip et.</p>
+      <span class="badge">PROFİL & GELİŞİM</span>
+      <h2>Ölçü & Profil Bilgileri</h2>
+      <p class="hero-sub">Yaş, boy, kilo bilgilerini ve haftalık kol ölçünü buradan güncelle.</p>
       <div class="hero-stats">
-        <span class="stat-chip">⚖️ Güncel: ${latest.weight} kg</span>
+        <span class="stat-chip">🎂 ${p.age} Yaş</span>
+        <span class="stat-chip">📏 ${p.height} cm</span>
+        <span class="stat-chip">⚖️ ${p.weight} kg (VKİ: ${bmi})</span>
         <span class="stat-chip">💪 Sağ Kol: ${latest.rightArm} cm (${armDelta >= 0 ? '+' : ''}${armDelta})</span>
-        <span class="stat-chip">💪 Sol Kol: ${latest.leftArm} cm</span>
       </div>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title">👤 Profilimi Düzenle (Yaş, Boy, Kilo)</h3>
+      <div class="input-grid">
+        <div>
+          <label class="field-label">Yaş</label>
+          <input id="prof-age" type="number" min="14" max="99" class="set-input" value="${p.age}" />
+        </div>
+        <div>
+          <label class="field-label">Boy (cm)</label>
+          <input id="prof-height" type="number" min="120" max="230" class="set-input" value="${p.height}" />
+        </div>
+        <div>
+          <label class="field-label">Kilo (kg)</label>
+          <input id="prof-weight" type="number" step="0.1" min="35" max="250" class="set-input" value="${p.weight}" />
+        </div>
+      </div>
+      <button class="btn-primary" id="save-profile-btn">Profili Kaydet</button>
     </section>
 
     <section class="card">
@@ -620,6 +591,17 @@ function renderProgressTab() {
 
   mainContent.innerHTML = html;
 
+  document.getElementById('save-profile-btn').addEventListener('click', () => {
+    const age = parseInt(document.getElementById('prof-age').value, 10);
+    const height = parseInt(document.getElementById('prof-height').value, 10);
+    const weight = parseFloat(document.getElementById('prof-weight').value);
+    if (!isNaN(age) && !isNaN(height) && !isNaN(weight)) {
+      state.profile = { age, height, weight };
+      saveState();
+      renderProgressTab();
+    }
+  });
+
   document.getElementById('save-measure-btn').addEventListener('click', () => {
     const w = parseFloat(document.getElementById('inp-weight').value);
     const r = parseFloat(document.getElementById('inp-rarm').value);
@@ -662,7 +644,6 @@ function switchTab(tabName) {
     btn.classList.toggle('active', btn.dataset.tab === tabName);
   });
   if (tabName === 'today') renderTodayTab();
-  else if (tabName === 'program') renderProgramTab();
   else if (tabName === 'nutrition') renderNutritionTab();
   else if (tabName === 'progress') renderProgressTab();
   window.scrollTo({ top: 0, behavior: 'smooth' });
