@@ -7,8 +7,8 @@
 :root {
   /* ── DARK (default) ── */
   --bg: #010F1E;
-  --surface: #021829;
-  --surface-2: #042038;
+  --surface: rgba(2, 24, 41, 0.78);
+  --surface-2: rgba(4, 32, 56, 0.86);
   --surface-subtle: rgba(255, 255, 255, 0.04);
   --track-bg: rgba(255, 255, 255, 0.08);
   --border: rgba(14, 126, 142, 0.28);
@@ -29,8 +29,8 @@
 
 [data-theme="light"] {
   --bg: #F2F8FA;
-  --surface: #FFFFFF;
-  --surface-2: #E2F2F5;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-2: rgba(226, 242, 245, 0.88);
   --surface-subtle: rgba(14, 126, 142, 0.06);
   --track-bg: rgba(14, 126, 142, 0.14);
   --border: rgba(14, 126, 142, 0.22);
@@ -83,7 +83,7 @@ html, body {
   height: 100%;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.65;
+  opacity: 0.95;
 }
 
 .hidden {
@@ -360,6 +360,7 @@ body.music-playing .app-shell {
 /* Collapsible Card */
 .card {
   background: var(--surface);
+  backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px;
@@ -432,6 +433,7 @@ body.music-playing .app-shell {
 /* Exercise Card */
 .exercise-card {
   background: var(--surface);
+  backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px;

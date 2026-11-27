@@ -110,7 +110,7 @@ function animateLines() {
   energyWaves.forEach(w => {
     w.phase += w.speed;
     const baseY = H * w.yRatio;
-    const alpha = isDark ? 0.28 : 0.20;
+    const alpha = isDark ? 0.42 : 0.30;
     const grad = ctx2d.createLinearGradient(0, baseY, W, baseY);
     grad.addColorStop(0, `rgba(${w.color}, 0)`);
     grad.addColorStop(0.25, `rgba(${w.color}, ${alpha})`);
@@ -160,7 +160,7 @@ function animateLines() {
       const dy = a.y - b.y;
       const dist = Math.hypot(dx, dy);
       if (dist < maxDist) {
-        const lineAlpha = (1 - dist / maxDist) * (isDark ? 0.25 : 0.18);
+        const lineAlpha = (1 - dist / maxDist) * (isDark ? 0.40 : 0.28);
         ctx2d.beginPath();
         ctx2d.moveTo(a.x, a.y);
         ctx2d.lineTo(b.x, b.y);
@@ -580,7 +580,7 @@ function renderTodayTab() {
           <div class="ex-thumb" data-open-ex="${exId}">
             ${getExerciseSVG(ex.visualKey)}
             <span class="ex-thumb-zoom">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              <svg width="11" height="11" style="width:11px;height:11px;display:block;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
             </span>
           </div>
           <div class="ex-info">
