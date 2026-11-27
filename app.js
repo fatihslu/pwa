@@ -603,13 +603,18 @@ function renderProgressTab() {
     </section>
 
     <section class="card">
-      <h3 class="card-title">📲 WebAPK Kurulum Bilgisi</h3>
+      <h3 class="card-title">📲 WebAPK Kurulum & Güncelleme</h3>
       <p style="font-size:13px;color:var(--text-muted);margin:6px 0 10px;">
         Telefonda Chrome/Safari menüsünden <strong>"Ana Ekrana Ekle"</strong> veya <strong>"Uygulamayı Yükle"</strong> seçeneğine dokunarak tam ekran uygulama gibi kullanabilirsin.
       </p>
-      <button class="btn-secondary" id="reset-data-btn" style="color:#FCA5A5;border-color:rgba(239,68,68,0.3);">
-        Tüm Verileri Sıfırla
-      </button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-secondary" id="force-update-btn" style="border-color:rgba(16,185,129,0.4);color:var(--success);">
+          🔄 Uygulamayı Güncelle (Veriler Korunur)
+        </button>
+        <button class="btn-secondary" id="reset-data-btn" style="color:#FCA5A5;border-color:rgba(239,68,68,0.3);">
+          Tüm Verileri Sıfırla
+        </button>
+      </div>
     </section>
   `;
 
@@ -624,6 +629,20 @@ function renderProgressTab() {
       saveState();
       renderProgressTab();
     }
+  });
+
+  document.getElementById('force-update-btn').addEventListener('click', async () => {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.update()));
+      }
+    } catch (e) {}
+    window.location.reload();
   });
 
   document.getElementById('reset-data-btn').addEventListener('click', () => {
