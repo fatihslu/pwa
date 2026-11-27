@@ -70,20 +70,27 @@ let timerSeconds = 0;
 let deferredInstallPrompt = null;
 let musicOn = false;
 
-// ── Energy Lines Canvas ──────────────────────────────────────
+// ── Innovative Energy Flow Canvas (Harmonic Waves + Glowing Circuit Nodes) ──
 const energyCanvas = document.getElementById('energy-canvas');
 const ctx2d = energyCanvas ? energyCanvas.getContext('2d') : null;
 
-const lines = Array.from({ length: 18 }, (_, i) => ({
+const energyNodes = Array.from({ length: 16 }, () => ({
   x: Math.random() * window.innerWidth,
   y: Math.random() * window.innerHeight,
-  angle: Math.random() * Math.PI * 2,
-  speed: 0.5 + Math.random() * 1.1,
-  length: 60 + Math.random() * 100,
-  width: 0.6 + Math.random() * 1.4,
-  opacity: 0.15 + Math.random() * 0.45,
-  hue: Math.random() > 0.5 ? '14, 126, 142' : '168, 221, 229'
+  vx: (Math.random() - 0.5) * 0.75,
+  vy: (Math.random() - 0.5) * 0.75,
+  r: 1.5 + Math.random() * 2,
+  phase: Math.random() * Math.PI * 2
 }));
+
+const energyWaves = [
+  { amp: 28, freq: 0.008, speed: 0.022, yRatio: 0.22, phase: 0,   width: 1.6, color: '14, 126, 142' },
+  { amp: 36, freq: 0.006, speed: -0.018, yRatio: 0.45, phase: 1.8, width: 1.3, color: '21, 168, 187' },
+  { amp: 22, freq: 0.011, speed: 0.026, yRatio: 0.68, phase: 3.4, width: 1.2, color: '168, 221, 229' },
+  { amp: 32, freq: 0.007, speed: -0.015, yRatio: 0.85, phase: 5.1, width: 1.4, color: '14, 126, 142' }
+];
+
+let energyTick = 0;
 
 function resizeCanvas() {
   if (!energyCanvas) return;
@@ -93,35 +100,85 @@ function resizeCanvas() {
 
 function animateLines() {
   if (!ctx2d || !energyCanvas) return;
-  ctx2d.clearRect(0, 0, energyCanvas.width, energyCanvas.height);
+  const W = energyCanvas.width;
+  const H = energyCanvas.height;
+  ctx2d.clearRect(0, 0, W, H);
   const isDark = document.documentElement.dataset.theme !== 'light';
-  lines.forEach(l => {
-    l.x += Math.cos(l.angle) * l.speed;
-    l.y += Math.sin(l.angle) * l.speed;
-    if (l.x < -l.length) l.x = energyCanvas.width + l.length;
-    if (l.x > energyCanvas.width + l.length) l.x = -l.length;
-    if (l.y < -l.length) l.y = energyCanvas.height + l.length;
-    if (l.y > energyCanvas.height + l.length) l.y = -l.length;
-    l.angle += (Math.random() - 0.5) * 0.025;
-    const alpha = isDark ? l.opacity : l.opacity * 0.55;
-    const grad = ctx2d.createLinearGradient(
-      l.x, l.y,
-      l.x + Math.cos(l.angle) * l.length,
-      l.y + Math.sin(l.angle) * l.length
-    );
-    grad.addColorStop(0, `rgba(${l.hue},0)`);
-    grad.addColorStop(0.5, `rgba(${l.hue},${alpha})`);
-    grad.addColorStop(1, `rgba(${l.hue},0)`);
+  energyTick += 1;
+
+  // 1. Flowing harmonic energy ribbons
+  energyWaves.forEach(w => {
+    w.phase += w.speed;
+    const baseY = H * w.yRatio;
+    const alpha = isDark ? 0.28 : 0.20;
+    const grad = ctx2d.createLinearGradient(0, baseY, W, baseY);
+    grad.addColorStop(0, `rgba(${w.color}, 0)`);
+    grad.addColorStop(0.25, `rgba(${w.color}, ${alpha})`);
+    grad.addColorStop(0.5, `rgba(${w.color}, ${alpha * 1.4})`);
+    grad.addColorStop(0.75, `rgba(${w.color}, ${alpha})`);
+    grad.addColorStop(1, `rgba(${w.color}, 0)`);
+
     ctx2d.beginPath();
-    ctx2d.moveTo(l.x, l.y);
-    ctx2d.lineTo(
-      l.x + Math.cos(l.angle) * l.length,
-      l.y + Math.sin(l.angle) * l.length
-    );
+    for (let x = 0; x <= W; x += 14) {
+      const y = baseY
+        + Math.sin(x * w.freq + w.phase) * w.amp
+        + Math.cos(x * w.freq * 0.5 - w.phase * 0.7) * (w.amp * 0.45);
+      if (x === 0) ctx2d.moveTo(x, y);
+      else ctx2d.lineTo(x, y);
+    }
     ctx2d.strokeStyle = grad;
-    ctx2d.lineWidth = l.width;
+    ctx2d.lineWidth = w.width;
     ctx2d.stroke();
+
+    // Traveling energy spark along the wave
+    const sparkX = ((energyTick * (w.speed > 0 ? 2.2 : -2.2)) % W + W) % W;
+    const sparkY = baseY
+      + Math.sin(sparkX * w.freq + w.phase) * w.amp
+      + Math.cos(sparkX * w.freq * 0.5 - w.phase * 0.7) * (w.amp * 0.45);
+    const sparkGrad = ctx2d.createRadialGradient(sparkX, sparkY, 0, sparkX, sparkY, 10);
+    sparkGrad.addColorStop(0, `rgba(${w.color}, ${isDark ? 0.75 : 0.55})`);
+    sparkGrad.addColorStop(1, `rgba(${w.color}, 0)`);
+    ctx2d.fillStyle = sparkGrad;
+    ctx2d.beginPath();
+    ctx2d.arc(sparkX, sparkY, 10, 0, Math.PI * 2);
+    ctx2d.fill();
   });
+
+  // 2. Interconnected kinetic nodes
+  const maxDist = 115;
+  for (let i = 0; i < energyNodes.length; i++) {
+    const a = energyNodes[i];
+    a.x += a.vx;
+    a.y += a.vy;
+    a.phase += 0.04;
+    if (a.x < 0 || a.x > W) a.vx *= -1;
+    if (a.y < 0 || a.y > H) a.vy *= -1;
+
+    for (let j = i + 1; j < energyNodes.length; j++) {
+      const b = energyNodes[j];
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < maxDist) {
+        const lineAlpha = (1 - dist / maxDist) * (isDark ? 0.25 : 0.18);
+        ctx2d.beginPath();
+        ctx2d.moveTo(a.x, a.y);
+        ctx2d.lineTo(b.x, b.y);
+        ctx2d.strokeStyle = `rgba(14, 126, 142, ${lineAlpha})`;
+        ctx2d.lineWidth = 0.9;
+        ctx2d.stroke();
+      }
+    }
+
+    const pulse = 0.5 + 0.5 * Math.sin(a.phase);
+    ctx2d.beginPath();
+    ctx2d.arc(a.x, a.y, a.r + pulse * 0.8, 0, Math.PI * 2);
+    ctx2d.fillStyle = isDark
+      ? `rgba(168, 221, 229, ${0.25 + pulse * 0.35})`
+      : `rgba(14, 126, 142, ${0.22 + pulse * 0.28})`;
+    ctx2d.fill();
+  }
+
   requestAnimationFrame(animateLines);
 }
 
@@ -755,8 +812,12 @@ function drawLineChart(canvasId, labels, values, color = '#0E7E8E', unit = '') {
   canvas.width = W;
   canvas.height = H;
 
+  const isDark = document.documentElement.dataset.theme !== 'light';
+  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(1,15,30,0.08)';
+  const labelColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(1,15,30,0.55)';
+
   if (!values.length || values.every(v => v === null)) {
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillStyle = labelColor;
     ctx.font = '13px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Henüz veri yok', W / 2, H / 2);
@@ -773,7 +834,7 @@ function drawLineChart(canvasId, labels, values, color = '#0E7E8E', unit = '') {
   const getY = v => pad.top + (1 - (v - minV) / range) * (H - pad.top - pad.bottom);
 
   // Grid lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.strokeStyle = gridColor;
   ctx.lineWidth = 1;
   [0.25, 0.5, 0.75].forEach(r => {
     const y = pad.top + r * (H - pad.top - pad.bottom);
@@ -829,7 +890,7 @@ function drawLineChart(canvasId, labels, values, color = '#0E7E8E', unit = '') {
   }
 
   // X-axis labels
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillStyle = labelColor;
   ctx.font = '9px sans-serif';
   ctx.textAlign = 'center';
   const step = Math.ceil(labels.length / 6);
@@ -849,8 +910,11 @@ function drawBarChart(canvasId, labels, values, color = '#22D3B0', unit = '') {
   canvas.width = W;
   canvas.height = H;
 
+  const isDark = document.documentElement.dataset.theme !== 'light';
+  const labelColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(1,15,30,0.55)';
+
   if (!values.length || values.every(v => !v)) {
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillStyle = labelColor;
     ctx.font = '13px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Henüz veri yok', W / 2, H / 2);
@@ -878,7 +942,7 @@ function drawBarChart(canvasId, labels, values, color = '#22D3B0', unit = '') {
       ctx.fillText(`${v}`, x + barW / 2, y - 3);
     }
 
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillStyle = labelColor;
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(labels[i], x + barW / 2, H - 5);
