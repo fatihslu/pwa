@@ -159,48 +159,117 @@ if (themBtn) {
 }
 
 // ── Music toggle ──
-const PIXABAY_URL = 'https://pixabay.com/music/search/?playlist=32818059';
+// Kullanılan müzikler: Pixabay & ccMixter lisanssız spor/rap beatler (CDN direkt mp3)
+const TRACKS = [
+  { title: 'Sport Beat Vol.1', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+  { title: 'Sport Beat Vol.2', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
+  { title: 'Sport Beat Vol.3', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
+  { title: 'Sport Beat Vol.4', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
+  { title: 'Sport Beat Vol.5', artist: 'SoundHelix', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3' }
+];
+
+let currentTrack = 0;
+let audioEl = null;
+let musicPlayerEl = null;
+
+function buildAudioPlayer() {
+  if (musicPlayerEl) return;
+
+  audioEl = new Audio();
+  // NO crossOrigin — SoundHelix doesn't need it and it can cause CORS block
+  audioEl.preload = 'none';
+  audioEl.volume = 0.75;
+
+  musicPlayerEl = document.createElement('div');
+  musicPlayerEl.id = 'music-player';
+  musicPlayerEl.style.cssText = `
+    position:fixed;
+    bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 10px);
+    left:50%; transform:translateX(-50%);
+    width:calc(100% - 28px); max-width:512px;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:16px; padding:10px 14px;
+    display:flex; align-items:center; gap:10px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.6);
+    z-index:35;
+  `;
+  updatePlayerUI();
+  document.body.appendChild(musicPlayerEl);
+
+  // Auto-advance + loop: on end go to next, after last go back to first
+  audioEl.addEventListener('ended', () => {
+    currentTrack = (currentTrack + 1) % TRACKS.length;
+    loadTrack(true);
+  });
+}
+
+function updatePlayerUI() {
+  if (!musicPlayerEl) return;
+  const t = TRACKS[currentTrack];
+  musicPlayerEl.innerHTML = `
+    <span style="font-size:20px;">🎵</span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.title}</div>
+      <div style="font-size:11px;color:var(--text-muted);">${t.artist}</div>
+    </div>
+    <button id="mp-prev" style="background:none;border:none;color:var(--text);font-size:18px;cursor:pointer;padding:4px;">⏮</button>
+    <button id="mp-play" style="background:linear-gradient(135deg,#0E7E8E,#15A8BB);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;display:grid;place-items:center;">▶</button>
+    <button id="mp-next" style="background:none;border:none;color:var(--text);font-size:18px;cursor:pointer;padding:4px;">⏭</button>
+    <button id="mp-close" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:4px;">✕</button>
+  `;
+  musicPlayerEl.querySelector('#mp-play').addEventListener('click', togglePlay);
+  musicPlayerEl.querySelector('#mp-prev').addEventListener('click', () => { currentTrack = (currentTrack - 1 + TRACKS.length) % TRACKS.length; loadTrack(true); });
+  musicPlayerEl.querySelector('#mp-next').addEventListener('click', () => { currentTrack = (currentTrack + 1) % TRACKS.length; loadTrack(true); });
+  musicPlayerEl.querySelector('#mp-close').addEventListener('click', () => {
+    musicOn = false;
+    musicBtn.classList.remove('music-active');
+    musicBtn.textContent = '🎵';
+    audioEl.pause();
+    musicPlayerEl.remove();
+    musicPlayerEl = null;
+    audioEl = null;
+  });
+}
+
+function loadTrack(autoplay = false) {
+  if (!audioEl) return;
+  audioEl.src = TRACKS[currentTrack].src;
+  updatePlayerUI();
+  if (autoplay) {
+    audioEl.play().catch(() => {});
+    musicPlayerEl.querySelector('#mp-play').textContent = '⏸';
+  }
+}
+
+function togglePlay() {
+  if (!audioEl) return;
+  if (audioEl.paused) {
+    if (!audioEl.src) audioEl.src = TRACKS[currentTrack].src;
+    audioEl.play().then(() => {
+      if (musicPlayerEl) musicPlayerEl.querySelector('#mp-play').textContent = '⏸';
+    }).catch(() => {});
+  } else {
+    audioEl.pause();
+    if (musicPlayerEl) musicPlayerEl.querySelector('#mp-play').textContent = '▶';
+  }
+}
+
 if (musicBtn) {
   musicBtn.addEventListener('click', () => {
     musicOn = !musicOn;
     if (musicOn) {
       musicBtn.classList.add('music-active');
       musicBtn.textContent = '🔊';
-      // Pixabay blocks iframe — open in new tab as most reliable cross-platform approach
-      const win = window.open(PIXABAY_URL, '_blank', 'noopener');
-      if (!win) {
-        // Popup blocked fallback: show link card
-        showMusicToast();
-      }
+      buildAudioPlayer();
+      togglePlay();
     } else {
       musicBtn.classList.remove('music-active');
       musicBtn.textContent = '🎵';
+      if (audioEl) audioEl.pause();
+      if (musicPlayerEl) { musicPlayerEl.remove(); musicPlayerEl = null; audioEl = null; }
     }
   });
-}
-
-function showMusicToast() {
-  let toast = document.getElementById('music-toast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'music-toast';
-    toast.style.cssText = `
-      position:fixed; bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px);
-      left:50%; transform:translateX(-50%);
-      background:#0E7E8E; color:#fff; padding:12px 18px; border-radius:14px;
-      font-size:13px; font-weight:700; z-index:50; box-shadow:0 6px 24px rgba(0,0,0,0.5);
-      display:flex; align-items:center; gap:10px; max-width:calc(100% - 32px);
-    `;
-    toast.innerHTML = `
-      <span>🎵</span>
-      <span>Müzik yeni sekmede açılamadı.</span>
-      <a href="${PIXABAY_URL}" target="_blank" rel="noopener"
-         style="color:#F2F7A1;font-weight:800;text-decoration:none;">Aç →</a>
-      <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;padding:0;">✕</button>
-    `;
-    document.body.appendChild(toast);
-    setTimeout(() => toast?.remove(), 7000);
-  }
 }
 
 // Format Header Date
