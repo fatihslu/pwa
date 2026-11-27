@@ -7,8 +7,8 @@
 :root {
   /* ── DARK (default) ── */
   --bg: #010F1E;
-  --surface: rgba(4, 28, 48, 0.48);
-  --surface-2: rgba(14, 126, 142, 0.16);
+  --surface: rgba(4, 28, 48, 0.30);
+  --surface-2: rgba(14, 126, 142, 0.12);
   --surface-subtle: rgba(168, 221, 229, 0.06);
   --track-bg: rgba(168, 221, 229, 0.12);
   --border: rgba(168, 221, 229, 0.20);
@@ -30,8 +30,8 @@
 
 [data-theme="light"] {
   --bg: #EBF5F7;
-  --surface: rgba(255, 255, 255, 0.56);
-  --surface-2: rgba(226, 242, 245, 0.58);
+  --surface: rgba(255, 255, 255, 0.36);
+  --surface-2: rgba(226, 242, 245, 0.38);
   --surface-subtle: rgba(14, 126, 142, 0.07);
   --track-bg: rgba(14, 126, 142, 0.14);
   --border: rgba(255, 255, 255, 0.78);
