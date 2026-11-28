@@ -899,6 +899,98 @@ body.music-playing .app-shell {
   font-weight: 600;
 }
 
+.nutrition-progress-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.nutrition-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.nutrition-progress-meta strong {
+  color: var(--text);
+}
+
+.nutrition-progress-track {
+  height: 7px;
+  background: var(--surface-subtle);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.nutrition-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0E7E8E, #22D3B0);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+.chart-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.range-pills {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--surface-subtle);
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+}
+
+.range-pill {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.range-pill.active {
+  background: linear-gradient(135deg, #0E7E8E, #15A8BB);
+  color: #fff;
+}
+
+.nutrition-avg-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.nutrition-avg-pill {
+  background: var(--surface-subtle);
+  border-radius: 9px;
+  padding: 7px 6px;
+  text-align: center;
+}
+
+.nutrition-avg-pill span {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.nutrition-avg-pill strong {
+  font-size: 13px;
+  color: var(--text);
+}
+
 /* Progress & Forms */
 .input-grid {
   display: grid;

@@ -69,6 +69,7 @@ let timerInterval = null;
 let timerSeconds = 0;
 let deferredInstallPrompt = null;
 let musicOn = false;
+let nutritionChartRange = '7d'; // '7d' | '30d' | 'monthly'
 
 // ── Innovative Energy Flow Canvas (Harmonic Waves + Glowing Circuit Nodes) ──
 const energyCanvas = document.getElementById('energy-canvas');
@@ -706,6 +707,117 @@ function bindTodayEvents() {
 // ═══════════════════════════════════════════
 // RENDER: NUTRITION TAB
 // ═══════════════════════════════════════════
+function parseMealMacros(macrosStr) {
+  const str = String(macrosStr || '');
+  const p = parseInt((str.match(/(\d+)\s*g\s*P/i) || [])[1] || '0', 10);
+  const c = parseInt((str.match(/(\d+)\s*g\s*K/i) || [])[1] || '0', 10);
+  const f = parseInt((str.match(/(\d+)\s*g\s*Y/i) || [])[1] || '0', 10);
+  const kcal = parseInt((str.match(/(\d+)\s*kcal/i) || [])[1] || '0', 10);
+  return { protein: p, carbs: c, fat: f, calories: kcal };
+}
+
+function computeNutritionDay(dateStr) {
+  const entry = (state.nutrition && state.nutrition[dateStr]) || null;
+  if (!entry) return null;
+  const mode = entry.mode === 'rest' ? 'rest' : 'training';
+  const plan = NUTRITION_PLAN[mode];
+  const mealsMap = entry.meals || {};
+  let calories = 0, protein = 0, carbs = 0, fat = 0, mealsDone = 0;
+
+  plan.meals.forEach(m => {
+    if (mealsMap[m.id]) {
+      mealsDone += 1;
+      const parsed = parseMealMacros(m.macros);
+      calories += parsed.calories;
+      protein += parsed.protein;
+      carbs += parsed.carbs;
+      fat += parsed.fat;
+    }
+  });
+
+  const mealsTotal = plan.meals.length || 1;
+  const waterMl = entry.waterMl || 0;
+  return {
+    date: dateStr,
+    mode,
+    calories,
+    protein,
+    carbs,
+    fat,
+    targetCalories: plan.calories,
+    targetProtein: plan.protein,
+    targetCarbs: plan.carbs,
+    targetFat: plan.fat,
+    mealsDone,
+    mealsTotal,
+    adherencePct: Math.round((mealsDone / mealsTotal) * 100),
+    waterMl,
+    waterLiters: Number((waterMl / 1000).toFixed(2)),
+    waterTargetLiters: plan.waterLiters
+  };
+}
+
+function getPastDateStr(daysAgo) {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function buildNutritionChartData(range = '7d') {
+  const nut = state.nutrition || {};
+  if (range === 'monthly') {
+    const byMonth = {};
+    Object.keys(nut).sort().forEach(dateStr => {
+      const summary = computeNutritionDay(dateStr);
+      if (!summary) return;
+      const monthKey = dateStr.slice(0, 7); // YYYY-MM
+      if (!byMonth[monthKey]) {
+        byMonth[monthKey] = { count: 0, calories: 0, waterL: 0, adherence: 0 };
+      }
+      byMonth[monthKey].count += 1;
+      byMonth[monthKey].calories += summary.calories;
+      byMonth[monthKey].waterL += summary.waterLiters;
+      byMonth[monthKey].adherence += summary.adherencePct;
+    });
+    const months = Object.keys(byMonth).sort().slice(-12);
+    return {
+      labels: months.map(m => m.slice(2)), // YY-MM
+      calories: months.map(m => Math.round(byMonth[m].calories / byMonth[m].count)),
+      water: months.map(m => Number((byMonth[m].waterL / byMonth[m].count).toFixed(2))),
+      adherence: months.map(m => Math.round(byMonth[m].adherence / byMonth[m].count)),
+      activeDays: months.reduce((acc, m) => acc + byMonth[m].count, 0)
+    };
+  }
+
+  const daysCount = range === '30d' ? 30 : 7;
+  const labels = [];
+  const calories = [];
+  const water = [];
+  const adherence = [];
+  let activeDays = 0;
+
+  for (let i = daysCount - 1; i >= 0; i--) {
+    const ds = getPastDateStr(i);
+    labels.push(ds.slice(5)); // MM-DD
+    const summary = computeNutritionDay(ds);
+    if (summary && (summary.calories > 0 || summary.waterMl > 0 || summary.mealsDone > 0)) {
+      activeDays += 1;
+      calories.push(summary.calories);
+      water.push(summary.waterLiters);
+      adherence.push(summary.adherencePct);
+    } else {
+      calories.push(0);
+      water.push(0);
+      adherence.push(0);
+    }
+  }
+
+  return { labels, calories, water, adherence, activeDays };
+}
+
 function renderNutritionTab() {
   const dateStr = getTodayDateStr();
   const isTodayRest = WEEKLY_PLAN[todayDayIndex].isRest;
@@ -720,12 +832,21 @@ function renderNutritionTab() {
   const plan = NUTRITION_PLAN[nState.mode];
   const waterTargetMl = plan.waterLiters * 1000;
   const p = state.profile || { age: 37, height: 180, weight: 86 };
+  const todaySummary = computeNutritionDay(dateStr);
+  const calPct = Math.min(100, Math.round((todaySummary.calories / plan.calories) * 100));
+  const chartData = buildNutritionChartData(nutritionChartRange);
+  const nonZeroCal = chartData.calories.filter(v => v > 0);
+  const nonZeroWater = chartData.water.filter(v => v > 0);
+  const nonZeroAdh = chartData.adherence.filter(v => v > 0);
+  const avgCal = nonZeroCal.length ? Math.round(nonZeroCal.reduce((a, b) => a + b, 0) / nonZeroCal.length) : 0;
+  const avgWater = nonZeroWater.length ? (nonZeroWater.reduce((a, b) => a + b, 0) / nonZeroWater.length).toFixed(2) : '0.00';
+  const avgAdh = nonZeroAdh.length ? Math.round(nonZeroAdh.reduce((a, b) => a + b, 0) / nonZeroAdh.length) : 0;
 
   let html = `
     <section class="hero-card">
       <span class="badge">${p.weight} KG • ${p.height} CM • ${p.age} YAŞ</span>
       <h2>Beslenme &amp; Su Planı</h2>
-      <p class="hero-sub">Günlük öğün ve su takibi.</p>
+      <p class="hero-sub">Günlük öğün, makro ve su takibi.</p>
     </section>
 
     <div class="seg-toggle">
@@ -734,10 +855,20 @@ function renderNutritionTab() {
     </div>
 
     <div class="macro-grid">
-      <div class="macro-box"><strong>${plan.calories}</strong><span>kcal</span></div>
-      <div class="macro-box"><strong style="color:var(--accent)">${plan.protein}g</strong><span>Protein</span></div>
-      <div class="macro-box"><strong>${plan.carbs}g</strong><span>Karb</span></div>
-      <div class="macro-box"><strong>${plan.fat}g</strong><span>Yağ</span></div>
+      <div class="macro-box"><strong>${todaySummary.calories}<small style="font-size:11px;font-weight:500;color:var(--text-muted)">/${plan.calories}</small></strong><span>kcal</span></div>
+      <div class="macro-box"><strong style="color:var(--accent)">${todaySummary.protein}<small style="font-size:11px;font-weight:500;color:var(--text-muted)">/${plan.protein}g</small></strong><span>Protein</span></div>
+      <div class="macro-box"><strong>${todaySummary.carbs}<small style="font-size:11px;font-weight:500;color:var(--text-muted)">/${plan.carbs}g</small></strong><span>Karb</span></div>
+      <div class="macro-box"><strong>${todaySummary.fat}<small style="font-size:11px;font-weight:500;color:var(--text-muted)">/${plan.fat}g</small></strong><span>Yağ</span></div>
+    </div>
+
+    <div class="nutrition-progress-bar">
+      <div class="nutrition-progress-meta">
+        <span>Günlük Kalori Tamamlama</span>
+        <strong>%${calPct} (${todaySummary.mealsDone}/${todaySummary.mealsTotal} öğün)</strong>
+      </div>
+      <div class="nutrition-progress-track">
+        <div class="nutrition-progress-fill" style="width:${calPct}%"></div>
+      </div>
     </div>
 
     <section class="card water-card">
@@ -770,9 +901,48 @@ function renderNutritionTab() {
         </label>
       `;
     }).join('')}
+
+    <section class="card">
+      <div class="chart-header-row">
+        <h3 class="card-title">
+          <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+          Beslenme Grafikleri
+        </h3>
+        <div class="range-pills">
+          <button class="range-pill ${nutritionChartRange === '7d' ? 'active' : ''}" data-nrange="7d">7 Gün</button>
+          <button class="range-pill ${nutritionChartRange === '30d' ? 'active' : ''}" data-nrange="30d">30 Gün</button>
+          <button class="range-pill ${nutritionChartRange === 'monthly' ? 'active' : ''}" data-nrange="monthly">Aylık</button>
+        </div>
+      </div>
+
+      <div class="nutrition-avg-row">
+        <div class="nutrition-avg-pill"><span>Ort. Kalori</span><strong>${avgCal} kcal</strong></div>
+        <div class="nutrition-avg-pill"><span>Ort. Su</span><strong>${avgWater} L</strong></div>
+        <div class="nutrition-avg-pill"><span>Öğün Uyumu</span><strong>%${avgAdh}</strong></div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="chart-label" style="color:var(--accent);">▸ Alınan Kalori (kcal)</div>
+        <canvas class="chart-canvas" id="chart-nut-cal"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-label" style="color:#38BDF8;">▸ Su Tüketimi (Litre)</div>
+        <canvas class="chart-canvas" id="chart-nut-water"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-label" style="color:var(--success);">▸ Öğün Uyumu (%)</div>
+        <canvas class="chart-canvas" id="chart-nut-adh"></canvas>
+      </div>
+    </section>
   `;
 
   mainContent.innerHTML = html;
+
+  requestAnimationFrame(() => {
+    drawBarChart('chart-nut-cal', chartData.labels, chartData.calories, '#15A8BB', ' kcal');
+    drawBarChart('chart-nut-water', chartData.labels, chartData.water, '#38BDF8', ' L');
+    drawLineChart('chart-nut-adh', chartData.labels, chartData.adherence, '#22D3B0', '%');
+  });
 
   document.querySelectorAll('[data-nmode]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -795,6 +965,13 @@ function renderNutritionTab() {
     cb.addEventListener('change', () => {
       nState.meals[cb.dataset.meal] = cb.checked;
       saveState();
+      renderNutritionTab();
+    });
+  });
+
+  document.querySelectorAll('[data-nrange]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      nutritionChartRange = btn.dataset.nrange;
       renderNutritionTab();
     });
   });
@@ -921,9 +1098,10 @@ function drawBarChart(canvasId, labels, values, color = '#22D3B0', unit = '') {
     return;
   }
 
-  const pad = { top: 10, bottom: 24, left: 8, right: 8 };
+  const pad = { top: 14, bottom: 24, left: 8, right: 8 };
   const maxV = Math.max(...values) || 1;
-  const barW = Math.max(4, (W - pad.left - pad.right) / values.length - 3);
+  const barW = Math.max(3, (W - pad.left - pad.right) / values.length - 3);
+  const step = Math.ceil(labels.length / 7);
 
   values.forEach((v, i) => {
     const x = pad.left + i * ((W - pad.left - pad.right) / values.length);
@@ -935,17 +1113,19 @@ function drawBarChart(canvasId, labels, values, color = '#22D3B0', unit = '') {
     ctx.roundRect ? ctx.roundRect(x, y, barW, barH, 3) : ctx.rect(x, y, barW, barH);
     ctx.fill();
 
-    if (v) {
+    if (v && (values.length <= 15 || i % step === 0 || i === labels.length - 1)) {
       ctx.fillStyle = color;
       ctx.font = 'bold 9px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(`${v}`, x + barW / 2, y - 3);
     }
 
-    ctx.fillStyle = labelColor;
-    ctx.font = '9px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(labels[i], x + barW / 2, H - 5);
+    if (i % step === 0 || i === labels.length - 1) {
+      ctx.fillStyle = labelColor;
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[i], x + barW / 2, H - 5);
+    }
   });
 }
 
@@ -1020,6 +1200,21 @@ function renderProgressTab() {
       </h3>
       <div class="chart-wrap">
         <canvas class="chart-canvas" id="chart-cal"></canvas>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title">
+        <svg class="lucide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        Beslenme Trendi (Son 14 Gün)
+      </h3>
+      <div class="chart-wrap" style="margin-bottom:8px;">
+        <div class="chart-label" style="color:var(--accent);">▸ Alınan Kalori (kcal)</div>
+        <canvas class="chart-canvas" id="chart-prog-nut-cal"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-label" style="color:#38BDF8;">▸ Su Tüketimi (Litre)</div>
+        <canvas class="chart-canvas" id="chart-prog-nut-water"></canvas>
       </div>
     </section>
 
@@ -1101,6 +1296,13 @@ function renderProgressTab() {
   requestAnimationFrame(() => {
     const cal = buildCalorieData(14);
     drawBarChart('chart-cal', cal.labels, cal.values, '#22D3B0', ' kcal');
+
+    const nut30 = buildNutritionChartData('30d');
+    const nut14Labels = nut30.labels.slice(-14);
+    const nut14Cal = nut30.calories.slice(-14);
+    const nut14Water = nut30.water.slice(-14);
+    drawBarChart('chart-prog-nut-cal', nut14Labels, nut14Cal, '#15A8BB', ' kcal');
+    drawBarChart('chart-prog-nut-water', nut14Labels, nut14Water, '#38BDF8', ' L');
 
     const wt = buildMeasurementData('weight', 12);
     drawLineChart('chart-weight', wt.labels, wt.values, '#0E7E8E', ' kg');
